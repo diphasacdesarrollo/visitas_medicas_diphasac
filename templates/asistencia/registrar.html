@@ -1,0 +1,31 @@
+<!--templates/asistencia/registrar.html-->
+
+{% extends 'base.html' %}
+{% block content %}
+<h2>Registrar Asistencia</h2>
+
+<p>Ubicación actual: <span id="ubicacionTexto">Cargando...</span></p>
+
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="ubicacion" id="ubicacionInput">
+
+    <button type="submit" name="accion" value="ingreso" {% if ya_ingreso %}disabled{% endif %}>
+        Ingreso
+    </button>
+
+    <button type="submit" name="accion" value="salida" {% if not ya_ingreso or ya_salida %}disabled{% endif %}>
+        Salida
+    </button>
+</form>
+
+<script>
+navigator.geolocation.getCurrentPosition(function(position) {
+    const coords = position.coords.latitude + ', ' + position.coords.longitude;
+    document.getElementById('ubicacionTexto').innerText = coords;
+    document.getElementById('ubicacionInput').value = coords;
+}, function(error) {
+    alert("No se pudo obtener ubicación: " + error.message);
+});
+</script>
+{% endblock %}

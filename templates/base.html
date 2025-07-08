@@ -1,0 +1,79 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Sistema de Visitas Médicas{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'inicio' %}">Inicio</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                {% if request.user.is_authenticated %}
+                    {% if request.user.is_superuser %}
+                        <li class="nav-item"><a class="nav-link" href="/admin/">Panel Admin</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#">Gestionar usuarios</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#">Estadísticas</a></li>
+                    {% elif request.user.rol == 'supervisor' %}
+                        <li class="nav-item"><a class="nav-link" href="#">Ver Asistencias</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#">Ver Visitadores</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#">Estadísticas</a></li>
+                    {% elif request.user.rol == 'visitador' %}
+                        <li class="nav-item"><a class="nav-link" href="#">Registrar Asistencia</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#">Registrar Visita</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#">Consultar Catálogo</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#">Mi Progreso</a></li>
+                    {% endif %}
+
+                    <li class="nav-item"><a class="nav-link" href="{% url 'cambiar_password' %}">Cambiar contraseña</a></li>
+                    <li class="nav-item">
+                        <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <a href="#" class="nav-link text-white" onclick="document.getElementById('logout-form').submit(); return false;">Cerrar sesión</a>
+                        </form>
+                    </li>
+                {% else %}
+                    <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Iniciar sesión</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Mensajes temporales (Django messages) -->
+<div class="container mt-3">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mensaje-temporal" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<!-- Contenido de cada vista -->
+<div class="container mt-4">
+    {% block content %}
+    {% endblock %}
+</div>
+
+<!-- Scripts Bootstrap + Autodesaparecer mensajes -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    setTimeout(function () {
+        const mensajes = document.querySelectorAll('.mensaje-temporal');
+        mensajes.forEach(function (alerta) {
+            alerta.classList.remove('show');
+            alerta.classList.add('fade');
+            setTimeout(() => alerta.remove(), 500);
+        });
+    }, 1000);
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
