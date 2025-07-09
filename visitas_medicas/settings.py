@@ -1,13 +1,14 @@
 from pathlib import Path
+import dj_database_url
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-xn*7_bv!q0bnm)-p54^-@2(9$0b&qv7)b^2^vrb7py@wb%$#)0'
 
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
 LOGIN_REDIRECT_URL = 'inicio'
@@ -66,14 +67,7 @@ WSGI_APPLICATION = 'visitas_medicas.wsgi.application'
 # Database
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'visitas_db',
-        'USER': 'postgres',      
-        'PASSWORD': '123',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
 }
 
 
