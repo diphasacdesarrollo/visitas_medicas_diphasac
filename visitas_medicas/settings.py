@@ -8,7 +8,8 @@ SECRET_KEY = 'django-insecure-xn*7_bv!q0bnm)-p54^-@2(9$0b&qv7)b^2^vrb7py@wb%$#)0
 
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['ALLOWED_HOSTS = ['visitasmedicasdiphasac-production.up.railway.app']
+CSRF_TRUSTED_ORIGINS = ['https://visitasmedicasdiphasac-production.up.railway.app']
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
 LOGIN_REDIRECT_URL = 'inicio'
