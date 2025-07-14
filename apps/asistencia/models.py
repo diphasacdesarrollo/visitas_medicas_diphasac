@@ -11,4 +11,3 @@ class Asistencia(models.Model):
 
     def __str__(self):
         return f"{self.usuario.email} - {self.fecha_ingreso}"
-

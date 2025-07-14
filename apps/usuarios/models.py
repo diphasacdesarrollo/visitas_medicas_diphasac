@@ -21,4 +21,3 @@ class Usuario(AbstractUser):
         if not self.pk and not self.is_superuser and not self.is_staff:
             self.must_change_password = True
         super().save(*args, **kwargs)
-

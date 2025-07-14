@@ -1,10 +1,22 @@
-<!--templates/inicio.html-->
+<!-- templates/inicio.html -->
 
 {% extends 'base.html' %}
 
 {% block title %}Inicio{% endblock %}
 
 {% block content %}
+
+<!-- Bloque para mostrar mensajes flash (éxito, error, etc.) -->
+{% if messages %}
+  <div class="container mt-3">
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
 <div class="container mt-5">
     <div class="alert alert-info">
         <h3>Bienvenido, {{ request.user.first_name|default:request.user.username }}</h3>
@@ -20,6 +32,7 @@
         {% endif %}
     </div>
 </div>
+
 <div class="container text-center mt-4">
     <div class="d-flex justify-content-center gap-3">
         <a href="{% url 'registrar_asistencia' %}" class="btn btn-primary btn-lg">

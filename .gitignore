@@ -10,6 +10,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Archivos de configuración local de Django (no subir a producción)
+visitas_medicas/settings_local.py
+
 # Archivos de configuración personal
 *.env
 .env.*

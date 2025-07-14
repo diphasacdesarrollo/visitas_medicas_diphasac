@@ -1,14 +1,17 @@
 from pathlib import Path
 import dj_database_url
 import os
+import dj_database_url  # Asegúrate de que esté instalado: pip install dj-database-url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-xn*7_bv!q0bnm)-p54^-@2(9$0b&qv7)b^2^vrb7py@wb%$#)0'
+# Recomendación: usar variable de entorno en producción para mayor seguridad
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-xn*7_bv!q0bnm)-p54^-@2(9$0b&qv7)b^2^vrb7py@wb%$#)0')
 
+# Railway define DEBUG=False por defecto en producción
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = ['visitasmedicasdiphasac-production.up.railway.app']
 
-ALLOWED_HOSTS =['visitasmedicasdiphasac-production.up.railway.app']
 CSRF_TRUSTED_ORIGINS = ['https://visitasmedicasdiphasac-production.up.railway.app']
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
@@ -65,51 +68,33 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'visitas_medicas.wsgi.application'
 
-
-# Database
-
+# Base de datos: conexión mediante variable DATABASE_URL de Railway
 DATABASES = {
     'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
 }
 
-
-# Password validation
-
+# Validación de contraseñas
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
-# Internationalization
-
+# Configuración regional
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'America/Lima'
 USE_TZ = False
 USE_I18N = True
 USE_L10N = True
 
-# Static files (CSS, JavaScript, Images)
-
+# Archivos estáticos
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / "staticfiles"  
-# Default primary key field type
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
-# WhiteNoise configuration (para servir archivos estáticos en producción)
+# WhiteNoise: servir archivos estáticos en producción
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Campo por defecto para claves primarias
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
