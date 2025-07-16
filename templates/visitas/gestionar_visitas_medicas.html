@@ -64,10 +64,15 @@
                 <td class="text-uppercase">{{ doctor.nombre }} {{ doctor.apellido }}</td>
                 <td>{{ doctor.especialidad }}</td>
                 <td class="text-center">
-                    {% if request.user.rol == 'visitador' %}
-                        <a href="{% url 'visitas:iniciar_visita' doctor.id %}" class="btn btn-outline-success btn-sm">Iniciar Visita</a>
+                    {% if doctor.id %}
+                        {% if request.user.rol == 'visitador' %}
+                            <a href="{% url 'visitas:iniciar_visita' doctor.id %}" class="btn btn-outline-success btn-sm">Iniciar Visita</a>
+                            <a href="{% url 'doctores:ver_prescripciones_doctor' doctor.id %}" class="btn btn-outline-info btn-sm">Prescripciones</a>
+                        {% else %}
+                            <a href="{% url 'doctores:ver_prescripciones_doctor' doctor.id %}" class="btn btn-outline-info btn-sm">Prescripciones</a>
+                        {% endif %}
                     {% else %}
-                        <span class="text-muted">No disponible</span>
+                        <span class="text-danger">ID inválido</span>
                     {% endif %}
                 </td>
             </tr>
@@ -82,7 +87,6 @@
         const tabla = document.getElementById("tablaDoctores").getElementsByTagName("tbody")[0];
         const filas = tabla.getElementsByTagName("tr");
 
-        // Mostrar solo los primeros 10 doctores al inicio
         let visibles = 0;
         for (let fila of filas) {
             if (visibles < 10) {
@@ -93,7 +97,6 @@
             }
         }
 
-        // Filtrar al escribir
         input.addEventListener("input", function () {
             const filtro = input.value.toLowerCase();
             let visibles = 0;

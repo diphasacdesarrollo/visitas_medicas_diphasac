@@ -3,7 +3,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .models import Doctor
+from .models import Doctor, Prescripcion
 from apps.ubicaciones.models import Departamento, Provincia, Distrito
 
 @login_required
@@ -52,7 +52,17 @@ def crear_doctor(request):
         'distrito_actual': int(distrito_id) if distrito_id else None,
     })
 
-
+@login_required
 def gestionar_medicos(request):
     doctores = Doctor.objects.all()
     return render(request, 'doctores/gestionar_medicos.html', {'doctores': doctores})
+
+@login_required
+def ver_prescripciones_doctor(request, doctor_id):
+    doctor = Doctor.objects.get(id=doctor_id)
+    prescripciones = Prescripcion.objects.filter(doctor_id=doctor.id).select_related('producto').order_by('-fecha_registro')
+
+    return render(request, 'doctores/ver_prescripciones.html', {
+        'doctor': doctor,
+        'prescripciones': prescripciones
+    })

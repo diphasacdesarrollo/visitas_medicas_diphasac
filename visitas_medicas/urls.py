@@ -14,7 +14,7 @@ urlpatterns = [
     path('', inicio, name='inicio'),
     path('visitas/', include('apps.visitas.urls', namespace='visitas')),
     path('asistencia/', include('apps.asistencia.urls')),
-    path('doctores/', include('apps.doctores.urls')),
+    path('doctores/', include(('apps.doctores.urls', 'doctores'), namespace='doctores')),
     path('rutas/', include('apps.rutas.urls')),
     path('api/', include('apps.ubicaciones.urls')),
 ]
