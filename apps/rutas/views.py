@@ -1,11 +1,12 @@
 #apps/rutas/views.py
+from datetime import date
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from apps.doctores.models import Doctor
 from apps.usuarios.models import Usuario
-from .models import Ruta  
-from datetime import date
+from .models import Ruta 
+from django.utils.timezone import localdate
 from apps.ubicaciones.models import Departamento, Provincia, Distrito
 
 @login_required
@@ -48,7 +49,7 @@ def crear_ruta(request):
             return redirect('crear_ruta')
 
         fecha_seleccionada = date.fromisoformat(fecha_visita)
-        hoy = date.today()
+        hoy = localdate()
         if fecha_seleccionada > hoy:
             estado = 'pendiente'
         elif fecha_seleccionada == hoy:
