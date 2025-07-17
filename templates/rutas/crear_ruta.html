@@ -60,6 +60,9 @@
         {% if distrito_actual %}
             <input type="hidden" name="distrito" value="{{ distrito_actual }}">
         {% endif %}
+        {% if request.GET.busqueda %}
+            <input type="hidden" name="busqueda" value="{{ request.GET.busqueda }}">
+        {% endif %}
         <label for="visitador_id" class="form-label">Seleccionar visitador:</label>
         <select name="visitador_id" id="visitador_id" class="form-select" onchange="this.form.submit()" required>
             <option value="">-- Selecciona un visitador --</option>
@@ -71,6 +74,29 @@
         </select>
     </form>
     {% endif %}
+
+    <form method="get" id="form-busqueda" class="mb-4">
+        {% if departamento_actual %}
+            <input type="hidden" name="departamento" value="{{ departamento_actual }}">
+        {% endif %}
+        {% if provincia_actual %}
+            <input type="hidden" name="provincia" value="{{ provincia_actual }}">
+        {% endif %}
+        {% if distrito_actual %}
+            <input type="hidden" name="distrito" value="{{ distrito_actual }}">
+        {% endif %}
+        {% if request.GET.visitador_id %}
+            <input type="hidden" name="visitador_id" value="{{ request.GET.visitador_id }}">
+        {% endif %}
+        <input
+            type="text"
+            name="busqueda"
+            class="form-control"
+            placeholder="Buscar por nombre o CMP"
+            value="{{ request.GET.busqueda }}"
+            oninput="document.getElementById('form-busqueda').submit();"
+        >
+    </form>
 
     <!-- Si no se encuentra el médico -->
     <div class="d-flex justify-content-between align-items-center mb-3">
