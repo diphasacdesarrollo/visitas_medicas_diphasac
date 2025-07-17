@@ -24,7 +24,7 @@ def crear_doctor(request):
 
         if not (cmp and nombre and apellido and especialidad and direccion and categoria and distrito_final_id):
             messages.error(request, 'Todos los campos excepto fecha de nacimiento son obligatorios.')
-            return redirect('crear_doctor')
+            return redirect('doctores:crear_doctor')
 
         Doctor.objects.create(
             cmp=cmp,
