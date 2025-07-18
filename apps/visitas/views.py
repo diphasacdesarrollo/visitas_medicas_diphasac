@@ -112,7 +112,6 @@ def agregar_productos(request):
         'imagen_productos': imagen_productos,
     })
 
-
 @login_required
 def gestionar_visitas_medicas(request):
     user = request.user
@@ -120,10 +119,10 @@ def gestionar_visitas_medicas(request):
     # Rutas según tipo de usuario
     if user.is_superuser or user.rol == 'supervisor':
         rutas = Ruta.objects.select_related('doctor', 'usuario').order_by('-fecha_visita')
-        doctores = []  # No se permite visitar
+        doctores = Doctor.objects.all()  # ✅ Mostrar doctores también a admin/supervisor
     else:
         rutas = Ruta.objects.filter(usuario=user).select_related('doctor').order_by('-fecha_visita')
-        doctores = Doctor.objects.all()  # Solo para visitadores
+        doctores = Doctor.objects.all()
 
     return render(request, 'visitas/gestionar_visitas_medicas.html', {
         'rutas': rutas,
