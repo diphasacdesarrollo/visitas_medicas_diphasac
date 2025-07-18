@@ -1,31 +1,68 @@
-<!--templates/asistencia/registrar.html-->
-
+<!-- templates/asistencia/registrar.html -->
 {% extends 'base.html' %}
+
 {% block content %}
-<h2>Registrar Asistencia</h2>
+<div class="container mt-5">
+    <h2 class="text-center mb-4">📍 Registrar Asistencia</h2>
 
-<p>Ubicación actual: <span id="ubicacionTexto">Cargando...</span></p>
+    {% if ultima_accion %}
+        <p class="text-center text-muted">
+        Última acción: <strong>{{ ultima_accion.0 }}</strong> - {{ ultima_accion.1|date:"d/m/Y H:i:s" }}
+        </p>
+    {% endif %}
 
-<form method="post">
+
+    <div class="alert alert-info text-center">
+        <strong>Ubicación actual:</strong> 
+        <span id="ubicacionTexto">Cargando...</span>
+        <a id="linkUbicacion" href="#" target="_blank" style="display:none; margin-left: 10px;">
+            Ver en Google Maps
+        </a>
+    </div>
+
+<form method="post" class="text-center">
     {% csrf_token %}
     <input type="hidden" name="ubicacion" id="ubicacionInput">
 
-    <button type="submit" name="accion" value="ingreso" {% if ya_ingreso %}disabled{% endif %}>
-        Ingreso
+    <button type="submit" name="accion" value="ingreso" class="btn btn-success me-2"
+        {% if ya_ingreso %}disabled{% endif %}>
+        ✅ Ingreso
     </button>
 
-    <button type="submit" name="accion" value="salida" {% if not ya_ingreso or ya_salida %}disabled{% endif %}>
-        Salida
+    <button type="submit" name="accion" value="salida" class="btn btn-danger me-2"
+        {% if not ya_ingreso or ya_salida %}disabled{% endif %}>
+        ⛔ Salida
     </button>
+
+    <a href="{% url 'inicio' %}" class="btn btn-secondary">
+        🏠 Inicio
+    </a>
 </form>
 
+</div>
+
 <script>
-navigator.geolocation.getCurrentPosition(function(position) {
-    const coords = position.coords.latitude + ', ' + position.coords.longitude;
-    document.getElementById('ubicacionTexto').innerText = coords;
-    document.getElementById('ubicacionInput').value = coords;
-}, function(error) {
-    alert("No se pudo obtener ubicación: " + error.message);
-});
+navigator.geolocation.getCurrentPosition(
+    function (position) {
+        const lat = position.coords.latitude.toFixed(6);
+        const lon = position.coords.longitude.toFixed(6);
+        const coords = `${lat}, ${lon}`;
+        document.getElementById("ubicacionTexto").innerText = coords;
+        document.getElementById("ubicacionInput").value = coords;
+
+        const link = document.getElementById("linkUbicacion");
+        link.href = `https://www.google.com/maps?q=${coords}`;
+        link.style.display = 'inline';
+    },
+    function (error) {
+        const mensaje = {
+            1: "Permiso denegado para acceder a la ubicación.",
+            2: "La ubicación no está disponible.",
+            3: "La solicitud de ubicación ha expirado."
+        }[error.code] || "Error desconocido.";
+        alert("⚠️ " + mensaje);
+        document.getElementById("ubicacionTexto").innerText = "No disponible";
+    }
+);
 </script>
 {% endblock %}

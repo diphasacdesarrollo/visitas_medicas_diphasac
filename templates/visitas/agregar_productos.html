@@ -1,4 +1,4 @@
-<!--templates/visitas/agregar_productos.html-->
+<!-- templates/visitas/agregar_productos.html -->
 {% extends 'base.html' %}
 {% load static %}
 {% load custom_filters %}
@@ -7,120 +7,123 @@
 <div class="container mt-4">
     <h2>Visita a {{ visita.doctor.nombre }}</h2>
     <p><strong>Inicio:</strong> {{ visita.fecha_inicio|date:"d/m/Y H:i" }}</p>
-    <p><strong>Ubicación:</strong> 
+
+    <div class="alert alert-info text-center" style="max-width: 600px;">
+        <strong>📍 Ubicación:</strong>
         {% if visita.ubicacion_inicio %}
-            {{ visita.ubicacion_inicio }}
+            <span>{{ visita.ubicacion_inicio }}</span>
+            <a href="https://www.google.com/maps?q={{ visita.ubicacion_inicio }}" target="_blank" class="ms-2">Ver en Google Maps</a>
         {% else %}
             <em class="text-muted">No registrada</em>
         {% endif %}
-    </p>
-    <hr>
-
-    <h5 class="mt-4 mb-2">📄 Productos Presentados</h5>
-    <div style="margin-top: 2rem;"></div>
-
-    <div class="row">
-        {% for producto in productos_promocionales %}
-            <div class="col-md-4 mb-3">
-                <div class="card p-3 text-center shadow-sm border-0 rounded-4 h-100 hover-shadow" style="transition: transform 0.2s;">
-                    <label>
-                        {% with imagen=imagen_productos|get_item:producto.nombre %}
-                            {% if imagen %}
-                                <img src="{% static 'img/'|add:imagen %}" 
-                                     alt="{{ producto.nombre }}" class="img-fluid mb-2" 
-                                     style="height: 140px; object-fit: contain;">
-                            {% else %}
-                                <div class="text-muted">Sin imagen</div>
-                            {% endif %}
-                        {% endwith %}
-                        <br>
-                        <input type="checkbox" name="productos_presentados" value="{{ producto.id }}">
-                        <strong class="d-block mt-2">{{ producto.nombre }}</strong>
-                    </label>
-                </div>
-            </div>
-        {% endfor %}
     </div>
 
-    <!-- 🧪 Muestras médicas y merchandising -->
-    <h4 class="mt-4">🎁 Entregas: Muestras Médicas y Merchandising</h4>
-    <form method="post" class="row g-3">
-        {% csrf_token %}
-        <div class="col-md-3">
-            <label for="tipo_entrega">Tipo:</label>
-            <select id="tipo_entrega" name="tipo_entrega" class="form-select" required onchange="filtrarProductos()">
-                <option value="">-- Seleccionar --</option>
-                <option value="muestra">Muestra Médica</option>
-                <option value="merch">Merchandising</option>
-            </select>
-        </div>
-        <div class="col-md-5">
-            <label for="producto">Producto:</label>
-            <select id="producto" name="producto" class="form-select" required disabled>
-                <option value="">Seleccione un tipo primero</option>
-                {% for producto in productos_muestra %}
-                    <option value="{{ producto.id }}" data-tipo="muestra">{{ producto.nombre }} - {{ producto.presentacion }}</option>
-                {% endfor %}
-                {% for producto in productos_merch %}
-                    <option value="{{ producto.id }}" data-tipo="merch">{{ producto.nombre }} - {{ producto.presentacion }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label for="cantidad">Cantidad:</label>
-            <input type="number" name="cantidad" class="form-control" min="1" required>
-        </div>
-        <div class="col-md-1 d-grid align-items-end">
-            <button type="submit" class="btn btn-success">Agregar</button>
-        </div>
-    </form>
-
     <hr>
 
-    <!-- 📋 Entregas registradas -->
-    <h4 class="mt-4">📋 Productos Entregados</h4>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Tipo</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in entregas %}
-            <tr>
-                <td>{{ item.producto.nombre }}</td>
-                <td>{{ item.cantidad }}</td>
-                <td>{{ item.get_tipo_entrega_display }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3">No se han registrado entregas aún.</td></tr>
+    <form method="post">
+        {% csrf_token %}
+
+        <!-- ✅ Productos Presentados -->
+        <h5 class="mt-4 mb-2">📄 Productos Presentados</h5>
+        <div class="row">
+            {% for producto in productos_promocionales %}
+                <div class="col-md-4 mb-3">
+                    <div class="card p-3 text-center shadow-sm border-0 rounded-4 h-100 hover-shadow" style="transition: transform 0.2s;">
+                        <label>
+                            {% with imagen=imagen_productos|get_item:producto.nombre %}
+                                {% if imagen %}
+                                    <img src="{% static 'img/'|add:imagen %}" 
+                                         alt="{{ producto.nombre }}" class="img-fluid mb-2" 
+                                         style="height: 140px; object-fit: contain;">
+                                {% else %}
+                                    <div class="text-muted">Sin imagen</div>
+                                {% endif %}
+                            {% endwith %}
+                            <br>
+                            <input type="checkbox" name="productos_presentados" value="{{ producto.id }}"
+                            {% if producto.id in productos_presentados_ids %} checked {% endif %}>
+                            <strong class="d-block mt-2">{{ producto.nombre }}</strong>
+                        </label>
+                    </div>
+                </div>
             {% endfor %}
-        </tbody>
-    </table>
+        </div>
 
-    <!-- 📝 Comentarios y finalizar -->
-    <hr>
-    <form method="post" class="mt-4">
-        {% csrf_token %}
-        <input type="hidden" name="finalizar" value="1">
+        <hr>
+
+        <!-- ✅ Entregas -->
+        <h4 class="mt-4">🎁 Entregas: Muestras Médicas y Merchandising</h4>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label for="tipo_entrega">Tipo:</label>
+                <select id="tipo_entrega" name="tipo_entrega" class="form-select" onchange="filtrarProductos()">
+                    <option value="">-- Seleccionar --</option>
+                    <option value="muestra">Muestra Médica</option>
+                    <option value="merch">Merchandising</option>
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label for="producto">Producto:</label>
+                <select id="producto" name="producto" class="form-select" disabled>
+                    <option value="">Seleccione un tipo primero</option>
+                    {% for producto in productos_muestra %}
+                        <option value="{{ producto.id }}" data-tipo="muestra">{{ producto.nombre }} - {{ producto.presentacion }}</option>
+                    {% endfor %}
+                    {% for producto in productos_merch %}
+                        <option value="{{ producto.id }}" data-tipo="merch">{{ producto.nombre }} - {{ producto.presentacion }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="cantidad">Cantidad:</label>
+                <input type="number" name="cantidad" class="form-control" min="1">
+            </div>
+            <div class="col-md-1 d-grid align-items-end">
+                <button type="submit" name="accion" value="agregar_entrega" class="btn btn-success">Agregar</button>
+            </div>
+        </div>
+
+        <!-- 📦 Productos Entregados -->
+        <h4 class="mt-4">📦 Productos Entregados</h4>
+        <table class="table table-bordered mt-2">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Tipo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entrega in entregas %}
+                    <tr>
+                        <td>{{ entrega.producto.nombre }}</td>
+                        <td>{{ entrega.cantidad }}</td>
+                        <td>{{ entrega.get_tipo_display }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <hr>
+
+        <!-- ✍️ Comentarios -->
+        <h4 class="mt-4">📝 Comentarios</h4>
         <div class="mb-3">
             <label for="comentarios">Comentarios:</label>
-            <textarea name="comentarios" class="form-control" rows="3"></textarea>
+            <textarea name="comentarios" class="form-control" rows="3">{{ visita.comentarios|default_if_none:"" }}</textarea>
         </div>
+
+        <!-- Oculta ubicación al fondo del form -->
         <input type="hidden" name="ubicacion_fin" id="ubicacionFin">
-        <button type="submit" class="btn btn-danger">Finalizar Visita</button>
-    </form>
+
+<!-- ✅ Botones Finalizar / Cancelar -->
+<div class="d-flex justify-content-end gap-2 mt-3">
+    <a href="{% url 'visitas:gestionar_visitas_medicas' %}" class="btn btn-secondary">Cancelar Visita</a>
+    <button type="submit" name="accion" value="finalizar" class="btn btn-danger">Finalizar Visita</button>
 </div>
 
-<style>
-.hover-shadow:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-</style>
-
+    </form>
+</div>
 {% endblock %}
 
 {% block extra_js %}

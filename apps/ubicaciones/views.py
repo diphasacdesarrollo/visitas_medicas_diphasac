@@ -1,3 +1,4 @@
+#apps/ubicaciones/views.py
 from django.http import JsonResponse
 from .models import Provincia, Distrito
 

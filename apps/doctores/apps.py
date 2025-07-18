@@ -1,3 +1,4 @@
+#apps/docotres/apps.py
 from django.apps import AppConfig
 
 class DoctoresConfig(AppConfig):

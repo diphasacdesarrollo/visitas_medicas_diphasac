@@ -3,10 +3,12 @@ from django.db import models
 from apps.usuarios.models import Usuario
 from apps.doctores.models import Doctor
 from apps.productos.models import Producto
+from apps.rutas.models import Ruta
 
 class Visita(models.Model):
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
     doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
+    ruta = models.ForeignKey(Ruta, on_delete=models.SET_NULL, null=True, blank=True)
     fecha_inicio = models.DateTimeField(auto_now_add=True)
     ubicacion_inicio = models.CharField(max_length=200, blank=True, null=True)
     fecha_final = models.DateTimeField(blank=True, null=True)

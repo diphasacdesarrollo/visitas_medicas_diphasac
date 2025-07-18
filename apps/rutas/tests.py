@@ -1,6 +1,4 @@
 # apps/rutas/tests.py
-# apps/rutas/tests.py
-
 from django.test import TestCase, Client
 from django.urls import reverse
 from apps.usuarios.models import Usuario

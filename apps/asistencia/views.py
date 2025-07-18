@@ -14,7 +14,16 @@ def registrar_asistencia(request):
     ).order_by('-id').first()
 
     ya_ingreso = asistencia_incompleta is not None
-    ya_salida = False  # no es necesario revisar porque filtramos por fecha_salida null
+    ya_salida = False
+
+    # ➕ NUEVO: Obtener última asistencia completa o incompleta
+    ultima_asistencia = Asistencia.objects.filter(usuario=usuario).order_by('-id').first()
+    ultima_accion = None
+    if ultima_asistencia:
+        if ultima_asistencia.fecha_salida:
+            ultima_accion = ('Salida', ultima_asistencia.fecha_salida)
+        elif ultima_asistencia.fecha_ingreso:
+            ultima_accion = ('Ingreso', ultima_asistencia.fecha_ingreso)
 
     if request.method == 'POST':
         accion = request.POST.get('accion')
@@ -27,7 +36,7 @@ def registrar_asistencia(request):
                 ubicacion_ingreso=ubicacion
             )
             messages.success(request, "Ingreso registrado correctamente.")
-            return redirect('inicio')  # 🔁 ahora también redirige al inicio
+            return redirect('inicio')
 
         elif accion == 'salida' and ya_ingreso:
             asistencia_incompleta.fecha_salida = timezone.now()
@@ -39,5 +48,6 @@ def registrar_asistencia(request):
     context = {
         'ya_ingreso': ya_ingreso,
         'ya_salida': ya_salida,
+        'ultima_accion': ultima_accion  # 👈 nuevo dato para el template
     }
     return render(request, 'asistencia/registrar.html', context)

@@ -1,3 +1,4 @@
+#apps/ubicaciones/apps.py
 from django.apps import AppConfig
 
 

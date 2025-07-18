@@ -1,3 +1,4 @@
+#apps/asistencia/apps.py
 from django.apps import AppConfig
 
 class AsistenciaConfig(AppConfig):

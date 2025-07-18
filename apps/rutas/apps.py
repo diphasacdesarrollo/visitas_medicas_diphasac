@@ -1,3 +1,4 @@
+#apps/rutas/apps.py
 from django.apps import AppConfig
 
 class RutasConfig(AppConfig):
