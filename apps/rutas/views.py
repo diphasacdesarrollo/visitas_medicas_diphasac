@@ -1,6 +1,9 @@
 # apps/rutas/views.py
 from datetime import date
 
+from django.template.loader import render_to_string
+from django.http import JsonResponse
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q              # 👈  IMPORTANTE
@@ -91,14 +94,19 @@ def crear_ruta(request):
 
     # ---------------------- render ------------------------------
     context = {
-        "doctores"           : doctores_qs,
-        "departamentos"      : departamentos,
-        "provincias"         : provincias,
-        "distritos"          : distritos,
-        "visitadores"        : visitadores,
+        "doctores": doctores_qs,
+        "departamentos": departamentos,
+        "provincias": provincias,
+        "distritos": distritos,
+        "visitadores": visitadores,
         "departamento_actual": int(departamento_id) if departamento_id else None,
-        "provincia_actual"   : int(provincia_id)    if provincia_id    else None,
-        "distrito_actual"    : int(distrito_id)     if distrito_id     else None,
-        "busqueda"           : busqueda,      #  👈  para mantener el texto en el input
+        "provincia_actual": int(provincia_id) if provincia_id else None,
+        "distrito_actual": int(distrito_id) if distrito_id else None,
+        "busqueda": busqueda,
     }
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        html = render_to_string("rutas/tabla_doctores.html", context, request=request)
+        return JsonResponse({"html": html})
+
     return render(request, "rutas/crear_ruta.html", context)

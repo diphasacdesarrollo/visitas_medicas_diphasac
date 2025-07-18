@@ -1,0 +1,48 @@
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>CMP</th>
+            <th>Nombre</th>
+            <th>Especialidad</th>
+            <th>Dirección</th>
+            <th>Ubigeo</th>
+            <th>Acción</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for doctor in doctores|slice:":20" %}
+        <tr>
+            <td>{{ doctor.cmp }}</td>
+            <td>{{ doctor.nombre }} {{ doctor.apellido }}</td>
+            <td>{{ doctor.especialidad }}</td>
+            <td>{{ doctor.direccion }}</td>
+            <td>
+                {{ doctor.ubigeo.provincia.departamento.nombre }},
+                {{ doctor.ubigeo.provincia.nombre }},
+                {{ doctor.ubigeo.nombre }}
+            </td>
+            <td>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="doctor_id" value="{{ doctor.id }}">
+                    {% if request.user.is_superuser or request.user.rol == 'supervisor' %}
+                        {% if request.GET.visitador_id %}
+                            <input type="hidden" name="visitador_id" value="{{ request.GET.visitador_id }}">
+                        {% else %}
+                            <p class="text-danger small">Selecciona primero un visitador</p>
+                        {% endif %}
+                    {% endif %}
+                    <div class="mb-1">
+                        <input type="date" name="fecha_visita" class="form-control form-control-sm" required>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary">Crear Ruta</button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="text-center text-muted">No se encontraron doctores para los filtros seleccionados.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

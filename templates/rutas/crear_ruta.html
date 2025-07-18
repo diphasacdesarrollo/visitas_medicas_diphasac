@@ -5,7 +5,7 @@
 <div class="container mt-4">
     <h2 class="mb-4">Crear Ruta</h2>
 
-    <!-- Bloque para mostrar mensajes -->
+    <!-- Mensajes temporales -->
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-{{ message.tags }} mensaje-temporal">
@@ -75,6 +75,7 @@
     </form>
     {% endif %}
 
+    <!-- Búsqueda AJAX -->
     <form method="get" id="form-busqueda" class="mb-4">
         {% if departamento_actual %}
             <input type="hidden" name="departamento" value="{{ departamento_actual }}">
@@ -88,74 +89,57 @@
         {% if request.GET.visitador_id %}
             <input type="hidden" name="visitador_id" value="{{ request.GET.visitador_id }}">
         {% endif %}
+
         <input
             type="text"
             name="busqueda"
+            id="busquedaInput"
             class="form-control"
             placeholder="Buscar por nombre o CMP"
             value="{{ request.GET.busqueda }}"
-            oninput="document.getElementById('form-busqueda').submit();"
         >
     </form>
 
-    <!-- Si no se encuentra el médico -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const input = document.getElementById("busquedaInput");
+        const contenedorTabla = document.getElementById("contenedor-tabla");
+        const formBusqueda = document.getElementById("form-busqueda");
+        let timeout = null;
+
+        input.addEventListener("input", function () {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                const formData = new FormData(formBusqueda);
+                const params = new URLSearchParams(formData);
+
+                fetch(window.location.pathname + "?" + params.toString(), {
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    contenedorTabla.innerHTML = data.html;
+                });
+            }, 300);
+        });
+    });
+    </script>
+
+    <!-- Mensaje y botón de registrar nuevo médico -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <p class="mb-0"><strong>¿No encontró el médico a visitar?</strong></p>
         <a href="{% url 'doctores:crear_doctor' %}" class="btn btn-outline-success btn-sm">➕ Registrar Médico</a>
     </div>
 
-    <!-- Tabla de Doctores -->
+    <!-- Tabla de resultados -->
     <h4>👨‍⚕️ Lista de Médicos</h4>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>CMP</th>
-                <th>Nombre</th>
-                <th>Especialidad</th>
-                <th>Dirección</th>
-                <th>Ubigeo</th>
-                <th>Acción</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for doctor in doctores|slice:":20" %}
-            <tr>
-                <td>{{ doctor.cmp }}</td>
-                <td>{{ doctor.nombre }} {{ doctor.apellido }}</td>
-                <td>{{ doctor.especialidad }}</td>
-                <td>{{ doctor.direccion }}</td>
-                <td>
-                    {{ doctor.ubigeo.provincia.departamento.nombre }},
-                    {{ doctor.ubigeo.provincia.nombre }},
-                    {{ doctor.ubigeo.nombre }}
-                </td>
-                <td>
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="doctor_id" value="{{ doctor.id }}">
-                        {% if request.user.is_superuser or request.user.rol == 'supervisor' %}
-                            {% if request.GET.visitador_id %}
-                                <input type="hidden" name="visitador_id" value="{{ request.GET.visitador_id }}">
-                            {% else %}
-                                <p class="text-danger small">Selecciona primero un visitador</p>
-                            {% endif %}
-                        {% endif %}
-                        <div class="mb-1">
-                            <input type="date" name="fecha_visita" class="form-control form-control-sm" required>
-                        </div>
-                        <button type="submit" class="btn btn-sm btn-primary">Crear Ruta</button>
-                    </form>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" class="text-center text-muted">No se encontraron doctores para los filtros seleccionados.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div id="contenedor-tabla">
+        {% include 'rutas/tabla_doctores.html' %}
+    </div>
 
-    <!-- Botón de cancelar -->
+    <!-- Cancelar -->
     <a href="{% url 'inicio' %}" class="btn btn-secondary mt-3">Cancelar</a>
 </div>
 
