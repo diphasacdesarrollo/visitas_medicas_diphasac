@@ -4,7 +4,9 @@
 {% block content %}
 <div class="container mt-4">
     <h2 class="mb-4">Crear Ruta</h2>
-
+    <a href="{% url 'inicio' %}" class="btn btn-secondary mb-4">
+    🏠 Inicio
+    </a>
     <!-- Mensajes temporales -->
     {% if messages %}
         {% for message in messages %}
@@ -138,9 +140,6 @@
     <div id="contenedor-tabla">
         {% include 'rutas/tabla_doctores.html' %}
     </div>
-
-    <!-- Cancelar -->
-    <a href="{% url 'inicio' %}" class="btn btn-secondary mt-3">Cancelar</a>
 </div>
 
 {% block extra_js %}

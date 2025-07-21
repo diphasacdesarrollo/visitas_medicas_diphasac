@@ -4,29 +4,35 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Iniciar Visita</h2>
-    <p>Ubicación: <span id="ubicacionTexto">Cargando...</span></p>
+
+    <!-- 🌍 Mostrar ubicación como enlace a Google Maps -->
+    <p>Ubicación:
+        <a id="ubicacionLink" href="#" target="_blank" style="text-decoration: underline;">
+            Cargando ubicación...
+        </a>
+    </p>
 
     <form method="post" class="col-md-6">
         {% csrf_token %}
         <input type="hidden" name="ubicacion" id="ubicacionInput">
 
-        <!-- ✅ Mostrar nombre del doctor -->
+        <!-- 🧑‍⚕️ Doctor seleccionado -->
         <div class="mb-3">
             <label class="form-label">Doctor seleccionado:</label>
             <input type="text" class="form-control" value="{{ doctor.nombre }} {{ doctor.apellido }}" readonly>
         </div>
 
-<!-- ✅ Mostrar si es con ruta o emergencia -->
+<!-- 🚩 Tipo de visita -->
 <div class="mb-3">
     <label class="form-label">Tipo de visita:</label><br>
     {% if visita_es_emergencia %}
-        <span class="badge bg-danger">Visita de emergencia</span>
+        <span class="badge bg-warning text-dark">Visita sin ruta asignada</span>
     {% else %}
         <span class="badge bg-success">Con ruta asignada</span>
     {% endif %}
 </div>
 
-
+        <!-- 🎯 Botones -->
         <div class="mt-3 d-flex gap-2">
             <button type="submit" class="btn btn-primary">Continuar</button>
             <a href="{% url 'visitas:gestionar_visitas_medicas' %}" class="btn btn-secondary">Cancelar</a>
@@ -40,14 +46,20 @@
 document.addEventListener("DOMContentLoaded", function () {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
-            const coords = position.coords.latitude + ', ' + position.coords.longitude;
-            document.getElementById('ubicacionTexto').innerText = coords;
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const coords = lat + ', ' + lng;
+            const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+
+            document.getElementById('ubicacionLink').innerText = coords;
+            document.getElementById('ubicacionLink').href = mapsUrl;
             document.getElementById('ubicacionInput').value = coords;
         }, function(error) {
-            document.getElementById('ubicacionTexto').innerText = "No disponible";
+            document.getElementById('ubicacionLink').innerText = "Ubicación no disponible";
+            document.getElementById('ubicacionLink').href = "#";
         });
     } else {
-        document.getElementById('ubicacionTexto').innerText = "No soportado";
+        document.getElementById('ubicacionLink').innerText = "No soportado";
     }
 });
 </script>

@@ -30,7 +30,9 @@
                         {% if ruta.estatus == 'completado' %}
                             <button class="btn btn-sm btn-secondary" disabled>✔ Completado</button>
                         {% else %}
-                            <a href="{% url 'visitas:iniciar_visita' ruta.doctor.id %}" class="btn btn-sm btn-success">Iniciar Visita</a>
+                            {% if ruta.id %}
+                                <a href="{% url 'visitas:iniciar_visita' ruta.id %}" class="btn btn-sm btn-success">Iniciar Visita</a>
+                            {% endif %}
                         {% endif %}
                     {% else %}
                         <span class="text-muted">No disponible</span>
@@ -48,37 +50,37 @@
     <h4 class="mb-3">🔍 Buscar Médicos</h4>
     <input type="text" id="filtroDoctor" class="form-control mb-3" placeholder="Buscar por nombre o CMP">
 
-    <table class="table table-bordered table-hover align-middle" id="tablaDoctores">
-        <thead class="table-light">
-            <tr>
-                <th>CMP</th>
-                <th>Nombre</th>
-                <th>Especialidad</th>
-                <th class="text-center">Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for doctor in doctores %}
-            <tr>
-                <td>{{ doctor.cmp }}</td>
-                <td class="text-uppercase">{{ doctor.nombre }} {{ doctor.apellido }}</td>
-                <td>{{ doctor.especialidad }}</td>
-                <td class="text-center">
-                    {% if doctor.id %}
-                        {% if request.user.rol == 'visitador' %}
-                            <a href="{% url 'visitas:iniciar_visita' doctor.id %}" class="btn btn-outline-success btn-sm">Iniciar Visita</a>
-                            <a href="{% url 'doctores:ver_prescripciones_doctor' doctor.id %}" class="btn btn-outline-info btn-sm">Prescripciones</a>
-                        {% else %}
-                            <a href="{% url 'doctores:ver_prescripciones_doctor' doctor.id %}" class="btn btn-outline-info btn-sm">Prescripciones</a>
-                        {% endif %}
-                    {% else %}
-                        <span class="text-danger">ID inválido</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<table class="table table-bordered table-hover align-middle" id="tablaDoctores">
+    <thead class="table-light">
+        <tr>
+            <th>CMP</th>
+            <th>Nombre</th>
+            <th>Especialidad</th>
+            <th class="text-center">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for doctor in doctores %}
+        <tr>
+            <td>{{ doctor.cmp }}</td>
+            <td class="text-uppercase">{{ doctor.nombre }} {{ doctor.apellido }}</td>
+            <td>{{ doctor.especialidad }}</td>
+<td class="text-center">
+    {% if request.user.rol == 'visitador' %}
+        {% if doctor.ruta_disponible %}
+            <a href="{% url 'visitas:iniciar_visita' doctor.ruta_disponible.id %}" class="btn btn-outline-success btn-sm">Iniciar Visita</a>
+            <span class="badge bg-success ms-1">Con ruta asignada</span>
+        {% else %}
+            <a href="{% url 'visitas:iniciar_visita_sin_ruta' doctor.id %}" class="btn btn-outline-warning btn-sm">Iniciar Visita</a>
+        {% endif %}
+    {% endif %}
+    <a href="{% url 'doctores:ver_prescripciones_doctor' doctor.id %}" class="btn btn-outline-info btn-sm">Prescripciones</a>
+</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
 </div>
 
 <script>

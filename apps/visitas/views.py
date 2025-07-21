@@ -7,41 +7,57 @@ from apps.visitas.models import Visita, DetalleVisita, ProductoPresentado
 from apps.productos.models import Producto
 from apps.rutas.models import Ruta
 from apps.doctores.models import Doctor
+from django.utils.timezone import now
 from apps.rutas.utils import actualizar_estados_de_rutas
 
 @login_required
-def iniciar_visita(request, doctor_id):
+def iniciar_visita(request, ruta_id=None, doctor_id=None):
     user = request.user
     ubicacion = request.GET.get('ubicacion', '')
+    visita_es_emergencia = False
+    ruta = None
+    doctor = None
 
-    doctor = get_object_or_404(Doctor, id=doctor_id)
     hoy = timezone.now().date()
 
-    ruta_existente = Ruta.objects.filter(doctor=doctor, usuario=user, fecha_visita=hoy).first()
-    visita_es_emergencia = False
-
-    if not ruta_existente:
-        Ruta.objects.create(
-            doctor=doctor,
-            usuario=user,
-            fecha_visita=hoy,
-            estatus='emergencia'
-        )
+    if ruta_id:
+        ruta = get_object_or_404(Ruta, id=ruta_id, usuario=user)
+        doctor = ruta.doctor
+    elif doctor_id:
+        doctor = get_object_or_404(Doctor, id=doctor_id)
         visita_es_emergencia = True
+    else:
+        return redirect('visitas:gestionar_visitas_medicas')  # fallback seguro
 
-    # 👇 Esta parte solo ocurre si se envía el formulario
+    # Buscar si ya existe visita (por ruta o por doctor sin ruta)
+    filtros = {
+        'usuario': user,
+        'doctor': doctor,
+        'fecha_inicio__date': hoy
+    }
+    if ruta:
+        filtros['ruta'] = ruta
+    else:
+        filtros['ruta__isnull'] = True
+
+    visita = Visita.objects.filter(**filtros).first()
+
     if request.method == 'POST':
-        ubicacion = request.POST.get('ubicacion', '')  # Asegúrate que el name sea "ubicacion" en el input
-        visita = Visita.objects.create(
-            usuario=user,
-            doctor=doctor,
-            fecha_inicio=timezone.now(),
-            ubicacion_inicio=ubicacion
-        )
+        if not visita:
+            ubicacion = request.POST.get('ubicacion', '')
+            visita = Visita.objects.create(
+                usuario=user,
+                doctor=doctor,
+                ruta=ruta,
+                fecha_inicio=now(),
+                ubicacion_inicio=ubicacion
+            )
         request.session['visita_id'] = visita.id
         return redirect('visitas:agregar_productos')
 
-    # 👇 Asegúrate de no pasar 'visita' si no existe
+    if visita:
+        request.session['visita_id'] = visita.id
+
     return render(request, 'visitas/iniciar_visita.html', {
         'doctor': doctor,
         'ubicacion': ubicacion,
@@ -165,3 +181,18 @@ def actualizar_estados_de_rutas():
             ruta.estatus = 'pendiente'
 
         ruta.save()
+
+@login_required
+def ver_historial(request):
+    usuario = request.user
+
+    visitas = Visita.objects.filter(usuario=usuario).order_by('-fecha_inicio')
+
+    detalles = DetalleVisita.objects.filter(visita__in=visitas)
+    presentados = ProductoPresentado.objects.filter(visita__in=visitas)
+
+    return render(request, 'visitas/historial.html', {
+        'visitas': visitas,
+        'detalles': detalles,
+        'presentados': presentados,
+       })

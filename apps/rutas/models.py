@@ -1,4 +1,3 @@
-#apps/rutas/models.py
 from django.db import models
 from apps.doctores.models import Doctor
 from apps.usuarios.models import Usuario
@@ -22,18 +21,19 @@ class Ruta(models.Model):
 
     def actualizar_estatus(self):
         """
-        Cambia automáticamente el estatus según la fecha actual y la existencia de visitas.
+        Cambia automáticamente el estatus según la fecha actual 
+        y la existencia de una visita finalizada asociada a esta ruta.
         """
         from apps.visitas.models import Visita
 
         hoy = timezone.localdate()
-        tiene_visita = Visita.objects.filter(ruta=self).exists()
+        tiene_visita = Visita.objects.filter(ruta=self, fecha_final__isnull=False).exists()
 
         if tiene_visita:
             self.estatus = 'completado'
         elif self.fecha_visita < hoy:
             self.estatus = 'retraso'
-        elif self.estatus != 'emergencia':  # no sobreescribas si ya está como emergencia
+        elif self.estatus != 'emergencia':  # mantener si ya era emergencia
             self.estatus = 'pendiente'
 
         self.save()
