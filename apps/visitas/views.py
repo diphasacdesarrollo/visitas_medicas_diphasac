@@ -223,6 +223,12 @@ def ver_historial(request):
     productos_tipo_labels = [p['producto__tipo_producto'] for p in productos_por_tipo]
     productos_tipo_data = [p['total'] for p in productos_por_tipo]
 
+    # Evitar que el gráfico pie desaparezca si no hay datos
+    if not productos_tipo_labels or not productos_tipo_data or sum(productos_tipo_data) == 0:
+        productos_tipo_labels = ["Sin datos"]
+        productos_tipo_data = [1]
+
+
     top_doctores = (
         visitas_qs.values('doctor__nombre')
         .annotate(total=Count('id'))
