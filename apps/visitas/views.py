@@ -9,6 +9,10 @@ from apps.rutas.models import Ruta
 from apps.doctores.models import Doctor
 from django.utils.timezone import now
 from apps.rutas.utils import actualizar_estados_de_rutas
+from django.db.models import Count, Avg, DurationField, ExpressionWrapper, F
+from django.db.models.functions import TruncWeek
+from datetime import timedelta
+import json
 
 @login_required
 def iniciar_visita(request, ruta_id=None, doctor_id=None):
@@ -186,13 +190,64 @@ def actualizar_estados_de_rutas():
 def ver_historial(request):
     usuario = request.user
 
-    visitas = Visita.objects.filter(usuario=usuario).order_by('-fecha_inicio')
+    # Query base
+    visitas_qs = Visita.objects.filter(usuario=usuario).order_by('-fecha_inicio')
+    detalles_qs = DetalleVisita.objects.filter(visita__in=visitas_qs)
+    presentados_qs = ProductoPresentado.objects.filter(visita__in=visitas_qs)
 
-    detalles = DetalleVisita.objects.filter(visita__in=visitas)
-    presentados = ProductoPresentado.objects.filter(visita__in=visitas)
+    # KPIs
+    total_visitas_semana = visitas_qs.filter(
+        fecha_inicio__week=timezone.now().isocalendar()[1]
+    ).count()
+    total_productos_presentados = presentados_qs.count()
+    total_entregas = detalles_qs.count()
+    tiempo_promedio = visitas_qs.exclude(fecha_final=None).annotate(
+        duracion_min=ExpressionWrapper(F('fecha_final') - F('fecha_inicio'), output_field=DurationField())
+    ).aggregate(promedio=Avg('duracion_min'))['promedio'] or timedelta(minutes=0)
+
+    # Datos para gráficos
+    visitas_por_semana = (
+        visitas_qs.annotate(semana=TruncWeek('fecha_inicio'))
+        .values('semana')
+        .annotate(total=Count('id'))
+        .order_by('semana')
+    )
+    visitas_semana_labels = [v['semana'].strftime('%d/%m') for v in visitas_por_semana]
+    visitas_semana_data = [v['total'] for v in visitas_por_semana]
+
+    productos_por_tipo = (
+        detalles_qs.values('producto__tipo_producto')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    productos_tipo_labels = [p['producto__tipo_producto'] for p in productos_por_tipo]
+    productos_tipo_data = [p['total'] for p in productos_por_tipo]
+
+    top_doctores = (
+        visitas_qs.values('doctor__nombre')
+        .annotate(total=Count('id'))
+        .order_by('-total')[:5]
+    )
+    top_doctores_labels = [d['doctor__nombre'] for d in top_doctores]
+    top_doctores_data = [d['total'] for d in top_doctores]
 
     return render(request, 'visitas/historial.html', {
-        'visitas': visitas,
-        'detalles': detalles,
-        'presentados': presentados,
-       })
+        # KPIs
+        'total_visitas_semana': total_visitas_semana,
+        'total_productos_presentados': total_productos_presentados,
+        'total_entregas': total_entregas,
+        'tiempo_promedio': round(tiempo_promedio.total_seconds() / 60) if tiempo_promedio else 0,
+
+        # Gráficos en formato JSON válido
+        'visitas_semana_labels': json.dumps(visitas_semana_labels),
+        'visitas_semana_data': json.dumps(visitas_semana_data),
+        'productos_tipo_labels': json.dumps(productos_tipo_labels),
+        'productos_tipo_data': json.dumps(productos_tipo_data),
+        'top_doctores_labels': json.dumps(top_doctores_labels),
+        'top_doctores_data': json.dumps(top_doctores_data),
+
+        # Últimos 10 registros para tablas
+        'visitas': visitas_qs[:10],
+        'detalles': detalles_qs[:10],
+        'presentados': presentados_qs[:10],
+    })
