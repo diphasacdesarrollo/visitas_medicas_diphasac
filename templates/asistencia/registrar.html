@@ -55,33 +55,47 @@
 
 {% if asistencias_semana %}
 <table class="table table-bordered table-hover text-center">
-    <thead class="table-light">
-        <tr>
-            <th>📆 Fecha</th>
-            <th>🕐 Ingreso</th>
-            <th>📍 Ubicación Ingreso</th>
-            <th>🕔 Salida</th>
-            <th>📍 Ubicación Salida</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for asistencia in asistencias_semana %}
-        <tr>
-            <td>{{ asistencia.fecha_ingreso|date:"d/m/Y" }}</td>
-            <td>{{ asistencia.fecha_ingreso|date:"H:i:s" }}</td>
-            <td>{{ asistencia.ubicacion_ingreso|default:"—" }}</td>
-            <td>
-                {% if asistencia.fecha_salida %}
-                    {{ asistencia.fecha_salida|date:"H:i:s" }}
-                {% else %}
-                    —
-                {% endif %}
-            </td>
-            <td>{{ asistencia.ubicacion_salida|default:"—" }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
+  <thead class="table-light">
+    <tr>
+      <th>📆 Fecha Ingreso</th>
+      <th>🕐 Ingreso</th>
+      <th>📍 Ubicación Ingreso</th>
+      <th>📆 Fecha Salida</th>       <!-- NUEVO -->
+      <th>🕔 Hora Salida</th>
+      <th>📍 Ubicación Salida</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for asistencia in asistencias_semana %}
+    <tr>
+      <td>{{ asistencia.fecha_ingreso|date:"d/m/Y" }}</td>
+      <td>{{ asistencia.fecha_ingreso|date:"H:i:s" }}</td>
+      <td>{{ asistencia.ubicacion_ingreso|default:"—" }}</td>
+
+      <!-- NUEVO: fecha de salida -->
+      <td>
+        {% if asistencia.fecha_salida %}
+          {{ asistencia.fecha_salida|date:"d/m/Y" }}
+        {% else %}
+          —
+        {% endif %}
+      </td>
+
+      <!-- ya estaba: hora de salida -->
+      <td>
+        {% if asistencia.fecha_salida %}
+          {{ asistencia.fecha_salida|date:"H:i:s" }}
+        {% else %}
+          —
+        {% endif %}
+      </td>
+
+      <td>{{ asistencia.ubicacion_salida|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>
+
 {% else %}
     <p class="text-center text-muted">No hay asistencias registradas esta semana.</p>
 {% endif %}
