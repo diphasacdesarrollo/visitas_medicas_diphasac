@@ -19,6 +19,15 @@ AUTH_USER_MODEL = 'usuarios.Usuario'
 LOGIN_REDIRECT_URL = 'inicio'
 LOGOUT_REDIRECT_URL = '/'
 
+# --- Seguridad detrás de proxy (Railway) ---
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Cookies seguras en HTTPS
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'Lax'  # valor por defecto, lo hacemos explícito
+
+
 # Application definition
 
 INSTALLED_APPS = [

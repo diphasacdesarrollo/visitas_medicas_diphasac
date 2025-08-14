@@ -90,19 +90,25 @@ def gestionar_visitas_medicas(request):
 
 @login_required
 def agregar_productos(request):
+    # 1) Recuperar la visita desde sesión (o corta con fallback SEGURO)
     visita_id = request.session.get('visita_id')
     if not visita_id:
         messages.error(request, "No se ha iniciado una visita.")
-        return redirect('iniciar_visita')
+        # ⚠️ No podemos volver a 'iniciar_visita' sin parámetros -> ir a la pantalla padre
+        return redirect('visitas:gestionar_visitas_medicas')
 
-    visita = get_object_or_404(Visita, id=visita_id)
+    # 2) Garantizar que la visita pertenece al usuario logueado
+    visita = get_object_or_404(Visita, id=visita_id, usuario=request.user)
 
     if request.method == 'POST':
         accion = request.POST.get('accion')
 
         # ✅ Guardar productos presentados (checkboxes)
         productos_presentados_ids = request.POST.getlist('productos_presentados')
-        ProductoPresentado.objects.filter(visita=visita).exclude(producto_id__in=productos_presentados_ids).delete()
+        (ProductoPresentado.objects
+            .filter(visita=visita)
+            .exclude(producto_id__in=productos_presentados_ids)
+            .delete())
         for prod_id in productos_presentados_ids:
             ProductoPresentado.objects.get_or_create(visita=visita, producto_id=prod_id)
 
@@ -128,14 +134,19 @@ def agregar_productos(request):
             visita.duracion = visita.calcular_duracion()
             visita.save()
 
-            # ✅ Actualizar estado de la ruta
+            # ✅ Intentar actualizar la ruta del día si aplica
             try:
-                ruta = Ruta.objects.get(usuario=request.user, doctor=visita.doctor, fecha_visita=visita.fecha_inicio.date())
+                ruta = Ruta.objects.get(
+                    usuario=request.user,
+                    doctor=visita.doctor,
+                    fecha_visita=visita.fecha_inicio.date()
+                )
                 ruta.actualizar_estatus()
             except Ruta.DoesNotExist:
                 pass
 
-            del request.session['visita_id']
+            # Limpia sesión y vuelve al inicio
+            request.session.pop('visita_id', None)
             messages.success(request, "Visita finalizada correctamente.")
             return redirect('inicio')
 
@@ -143,15 +154,18 @@ def agregar_productos(request):
     productos_muestra = Producto.objects.filter(tipo_producto='muestra')
     productos_merch = Producto.objects.filter(tipo_producto='merch')
 
-    productos_presentados = ProductoPresentado.objects.filter(visita=visita).select_related('producto')
-    entregas = DetalleVisita.objects.filter(visita=visita).select_related('producto')
+    productos_presentados = (ProductoPresentado.objects
+                             .filter(visita=visita)
+                             .select_related('producto'))
+    entregas = (DetalleVisita.objects
+                .filter(visita=visita)
+                .select_related('producto'))
     productos_presentados_ids = productos_presentados.values_list('producto_id', flat=True)
 
     imagen_productos = {
         'DUO DAPHA 10': 'test.jpg',
         'DUO DAPHA 5': 'duo-dapha-5.jpg',
         'DAPHA 10': 'dapha-10.jpg',
-        # Añade más imágenes si deseas
     }
 
     return render(request, 'visitas/agregar_productos.html', {
