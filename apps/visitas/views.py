@@ -25,20 +25,22 @@ def iniciar_visita(request, ruta_id=None, doctor_id=None):
     hoy = timezone.now().date()
 
     if ruta_id:
+        # Solo puede abrir rutas propias
         ruta = get_object_or_404(Ruta, id=ruta_id, usuario=user)
         doctor = ruta.doctor
     elif doctor_id:
         doctor = get_object_or_404(Doctor, id=doctor_id)
+        # Bloqueo: visitador solo con sus médicos
+        if not (user.is_superuser or user.rol == 'supervisor'):
+            if doctor.visitador_id != user.id:
+                messages.error(request, "No tienes permiso para visitar a este doctor.")
+                return redirect('visitas:gestionar_visitas_medicas')
         visita_es_emergencia = True
     else:
-        return redirect('visitas:gestionar_visitas_medicas')  # fallback seguro
+        return redirect('visitas:gestionar_visitas_medicas')
 
-    # Buscar si ya existe visita (por ruta o por doctor sin ruta)
-    filtros = {
-        'usuario': user,
-        'doctor': doctor,
-        'fecha_inicio__date': hoy
-    }
+    # Buscar si ya existe visita del día (por ruta o por doctor sin ruta)
+    filtros = {'usuario': user, 'doctor': doctor, 'fecha_inicio__date': hoy}
     if ruta:
         filtros['ruta'] = ruta
     else:
@@ -70,18 +72,20 @@ def iniciar_visita(request, ruta_id=None, doctor_id=None):
 
 @login_required
 def gestionar_visitas_medicas(request):
-    # Actualizar automáticamente estatus de rutas antes de mostrar
+    # Mantén tu actualización automática
     actualizar_estados_de_rutas()
 
     user = request.user
 
-    # Filtrar rutas según el tipo de usuario
     if user.is_superuser or user.rol == 'supervisor':
         rutas = Ruta.objects.select_related('doctor', 'usuario').order_by('-fecha_visita')
-        doctores = Doctor.objects.all()  # ✅ Mostrar doctores a supervisores y admin
+        doctores = Doctor.objects.all()              # Admin/supervisor ven todo
     else:
-        rutas = Ruta.objects.filter(usuario=user).select_related('doctor').order_by('-fecha_visita')
-        doctores = Doctor.objects.all()
+        rutas = (Ruta.objects
+                 .filter(usuario=user)
+                 .select_related('doctor')
+                 .order_by('-fecha_visita'))
+        doctores = Doctor.objects.filter(visitador_id=user.id)  # ← Solo sus médicos
 
     return render(request, 'visitas/gestionar_visitas_medicas.html', {
         'rutas': rutas,
