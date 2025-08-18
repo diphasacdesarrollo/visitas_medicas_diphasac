@@ -208,7 +208,7 @@ def actualizar_estados_de_rutas():
 def ver_historial(request):
     usuario = request.user
 
-    # Query base
+    # Query base (sin límites)
     visitas_qs = Visita.objects.filter(usuario=usuario).order_by('-fecha_inicio')
     detalles_qs = DetalleVisita.objects.filter(visita__in=visitas_qs)
     presentados_qs = ProductoPresentado.objects.filter(visita__in=visitas_qs)
@@ -217,41 +217,32 @@ def ver_historial(request):
     total_visitas_semana = visitas_qs.filter(
         fecha_inicio__week=timezone.now().isocalendar()[1]
     ).count()
+    tiempo_promedio = (visitas_qs
+        .exclude(fecha_final=None)
+        .annotate(duracion_min=ExpressionWrapper(F('fecha_final') - F('fecha_inicio'), output_field=DurationField()))
+        .aggregate(promedio=Avg('duracion_min'))
+        .get('promedio') or timedelta(minutes=0)
+    )
     total_productos_presentados = presentados_qs.count()
     total_entregas = detalles_qs.count()
-    tiempo_promedio = visitas_qs.exclude(fecha_final=None).annotate(
-        duracion_min=ExpressionWrapper(F('fecha_final') - F('fecha_inicio'), output_field=DurationField())
-    ).aggregate(promedio=Avg('duracion_min'))['promedio'] or timedelta(minutes=0)
 
     # Datos para gráficos
     visitas_por_semana = (
         visitas_qs.annotate(semana=TruncWeek('fecha_inicio'))
-        .values('semana')
-        .annotate(total=Count('id'))
-        .order_by('semana')
+        .values('semana').annotate(total=Count('id')).order_by('semana')
     )
     visitas_semana_labels = [v['semana'].strftime('%d/%m') for v in visitas_por_semana]
     visitas_semana_data = [v['total'] for v in visitas_por_semana]
 
     productos_por_tipo = (
         detalles_qs.values('producto__tipo_producto')
-        .annotate(total=Count('id'))
-        .order_by('-total')
+        .annotate(total=Count('id')).order_by('-total')
     )
-    productos_tipo_labels = [p['producto__tipo_producto'] for p in productos_por_tipo]
-    productos_tipo_data = [p['total'] for p in productos_por_tipo]
+    productos_tipo_labels = [p['producto__tipo_producto'] for p in productos_por_tipo] or ["Sin datos"]
+    productos_tipo_data = [p['total'] for p in productos_por_tipo] or [1]
 
-    # Evitar que el gráfico pie desaparezca si no hay datos
-    if not productos_tipo_labels or not productos_tipo_data or sum(productos_tipo_data) == 0:
-        productos_tipo_labels = ["Sin datos"]
-        productos_tipo_data = [1]
-
-
-    top_doctores = (
-        visitas_qs.values('doctor__nombre')
-        .annotate(total=Count('id'))
-        .order_by('-total')[:5]
-    )
+    top_doctores = (visitas_qs.values('doctor__nombre')
+        .annotate(total=Count('id')).order_by('-total')[:5])
     top_doctores_labels = [d['doctor__nombre'] for d in top_doctores]
     top_doctores_data = [d['total'] for d in top_doctores]
 
@@ -262,7 +253,7 @@ def ver_historial(request):
         'total_entregas': total_entregas,
         'tiempo_promedio': round(tiempo_promedio.total_seconds() / 60) if tiempo_promedio else 0,
 
-        # Gráficos en formato JSON válido
+        # Gráficos (JSON)
         'visitas_semana_labels': json.dumps(visitas_semana_labels),
         'visitas_semana_data': json.dumps(visitas_semana_data),
         'productos_tipo_labels': json.dumps(productos_tipo_labels),
@@ -270,8 +261,8 @@ def ver_historial(request):
         'top_doctores_labels': json.dumps(top_doctores_labels),
         'top_doctores_data': json.dumps(top_doctores_data),
 
-        # Últimos 10 registros para tablas
-        'visitas': visitas_qs[:10],
-        'detalles': detalles_qs[:10],
-        'presentados': presentados_qs[:10],
+        # Tablas completas (sin límite)
+        'visitas': visitas_qs,
+        'detalles': detalles_qs,
+        'presentados': presentados_qs,
     })
