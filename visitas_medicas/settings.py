@@ -11,9 +11,14 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-xn*7_bv!q0bnm)-p54^-@
 
 # Railway define DEBUG=False por defecto en producción
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = ['visitasmedicasdiphasac-production.up.railway.app']
+ALLOWED_HOSTS = ["127.0.0.1", "localhost",
+    "visitasmedicasdiphasac-production.up.railway.app",
+    # o más amplio:
+    ".railway.app",]
 
-CSRF_TRUSTED_ORIGINS = ['https://visitasmedicasdiphasac-production.up.railway.app']
+CSRF_TRUSTED_ORIGINS = [    "https://visitasmedicasdiphasac-production.up.railway.app",
+    # o más amplio:
+    "https://*.railway.app",]
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
 LOGIN_REDIRECT_URL = 'inicio'
@@ -22,11 +27,14 @@ LOGOUT_REDIRECT_URL = '/'
 # --- Seguridad detrás de proxy (Railway) ---
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# Para que el csrftoken viaje desde webviews (cross-site)
+CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SAMESITE = 'Lax'  # valor por defecto, lo hacemos explícito
+
 # Cookies seguras en HTTPS
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SAMESITE = 'Lax'  # valor por defecto, lo hacemos explícito
-
+CSRF_COOKIE_HTTPONLY = False
 
 # Application definition
 
