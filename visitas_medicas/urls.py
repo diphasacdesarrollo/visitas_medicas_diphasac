@@ -1,9 +1,14 @@
-#visitas_medicas/urls.py
+# visitas_medicas/urls.py
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
+from django.http import HttpResponse
+
+from django.contrib.staticfiles.storage import staticfiles_storage
+from django.views.generic.base import RedirectView
+
 from apps.usuarios.views import cambiar_password, inicio
 
 urlpatterns = [
@@ -17,6 +22,15 @@ urlpatterns = [
     path('doctores/', include(('apps.doctores.urls', 'doctores'), namespace='doctores')),
     path('rutas/', include('apps.rutas.urls')),
     path('api/', include('apps.ubicaciones.urls')),
+
+    # NEW: favicon directo -> evita 404 del navegador
+    path("favicon.ico", RedirectView.as_view(
+        url=staticfiles_storage.url("img/favicon.ico"),
+        permanent=True
+    )),
+
+    # NEW: healthcheck simple para Railway
+    path("healthz", lambda r: HttpResponse("ok")),
 ]
 
 if settings.DEBUG:

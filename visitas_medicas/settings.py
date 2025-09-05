@@ -107,7 +107,7 @@ USE_I18N = True
 USE_L10N = True
 
 # Archivos estáticos
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
