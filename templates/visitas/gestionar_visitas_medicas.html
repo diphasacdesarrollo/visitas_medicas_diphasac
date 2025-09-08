@@ -47,72 +47,96 @@
     {% endif %}
 
     <hr class="my-5">
+
     <h4 class="mb-3">🔍 Buscar Médicos</h4>
     <input type="text" id="filtroDoctor" class="form-control mb-3" placeholder="Buscar por nombre o CMP">
 
-<table class="table table-bordered table-hover align-middle" id="tablaDoctores">
-    <thead class="table-light">
+    <style>
+      .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+      .dot-verde{background:#16a34a}
+      .dot-amarillo{background:#f59e0b}
+      .dot-rojo{background:#ef4444}
+    </style>
+
+    <table class="table table-bordered table-hover align-middle" id="tablaDoctores">
+      <thead class="table-light">
         <tr>
-            <th>CMP</th>
-            <th>Nombre</th>
-            <th>Especialidad</th>
-            <th class="text-center">Acciones</th>
+          <th>Médico</th>
+          <th class="d-none d-md-table-cell">CMP</th>
+          <th class="d-none d-md-table-cell">Especialidad</th>
+          <th class="d-none d-md-table-cell">Visitas (mes)</th>
+          <th class="d-none d-md-table-cell">Estado</th>
+          <th class="text-center">Acciones</th>
         </tr>
-    </thead>
-    <tbody>
+      </thead>
+      <tbody>
         {% for doctor in doctores %}
         <tr>
-            <td>{{ doctor.cmp }}</td>
-            <td class="text-uppercase">{{ doctor.nombre }} {{ doctor.apellido }}</td>
-            <td>{{ doctor.especialidad }}</td>
-<td class="text-center">
-    {% if request.user.rol == 'visitador' %}
-        {% if doctor.ruta_disponible %}
-            <a href="{% url 'visitas:iniciar_visita' doctor.ruta_disponible.id %}" class="btn btn-outline-success btn-sm">Iniciar Visita</a>
-            <span class="badge bg-success ms-1">Con ruta asignada</span>
-        {% else %}
-            <a href="{% url 'visitas:iniciar_visita_sin_ruta' doctor.id %}" class="btn btn-outline-warning btn-sm">Iniciar Visita</a>
-        {% endif %}
-    {% endif %}
-    <a href="{% url 'doctores:ver_prescripciones_doctor' doctor.id %}" class="btn btn-outline-info btn-sm">Prescripciones</a>
-</td>
+          <!-- Columna Médico (móvil con subtexto compacto) -->
+          <td>
+            <span class="dot dot-{{ doctor.semaforo|default:'rojo' }}"
+                  title="{{ doctor.estado_label|default:'Pendiente' }}"></span>
+            <span class="fw-semibold text-uppercase">{{ doctor.apellido }} {{ doctor.nombre }}</span>
+            <div class="text-muted small d-md-none">
+              CMP {{ doctor.cmp }} · {{ doctor.especialidad }} · Visitas mes: {{ doctor.visitas_mes }}
+            </div>
+          </td>
+
+          <!-- Desktop: columnas separadas -->
+          <td class="d-none d-md-table-cell">{{ doctor.cmp }}</td>
+          <td class="d-none d-md-table-cell">{{ doctor.especialidad }}</td>
+          <td class="d-none d-md-table-cell">{{ doctor.visitas_mes }}</td>
+          <td class="d-none d-md-table-cell">
+            {% if doctor.semaforo == 'verde' %}
+              <span class="badge bg-success">Cubierto</span>
+            {% elif doctor.semaforo == 'amarillo' %}
+              <span class="badge bg-warning text-dark">Planificado</span>
+            {% else %}
+              <span class="badge bg-danger">Pendiente</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center">
+            {% if request.user.rol == 'visitador' %}
+              {% if doctor.ruta_disponible %}
+                <a href="{% url 'visitas:iniciar_visita' doctor.ruta_disponible.id %}" class="btn btn-outline-success btn-sm">Iniciar Visita</a>
+                <span class="badge bg-success ms-1 d-none d-md-inline">Con ruta asignada</span>
+              {% else %}
+                <a href="{% url 'visitas:iniciar_visita_sin_ruta' doctor.id %}" class="btn btn-outline-warning btn-sm">Iniciar Visita</a>
+              {% endif %}
+            {% endif %}
+            <a href="{% url 'doctores:ver_prescripciones_doctor' doctor.id %}" class="btn btn-outline-info btn-sm">Prescripciones</a>
+          </td>
         </tr>
         {% endfor %}
-    </tbody>
-</table>
-
+      </tbody>
+    </table>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const input = document.getElementById("filtroDoctor");
-        const tabla = document.getElementById("tablaDoctores").getElementsByTagName("tbody")[0];
-        const filas = tabla.getElementsByTagName("tr");
+  document.addEventListener("DOMContentLoaded", function () {
+    const input = document.getElementById("filtroDoctor");
+    const tabla = document.getElementById("tablaDoctores").getElementsByTagName("tbody")[0];
+    const filas = tabla.getElementsByTagName("tr");
 
-        let visibles = 0;
-        for (let fila of filas) {
-            if (visibles < 10) {
-                fila.style.display = "";
-                visibles++;
-            } else {
-                fila.style.display = "none";
-            }
+    let visibles = 0;
+    for (let fila of filas) {
+      if (visibles < 10) { fila.style.display = ""; visibles++; }
+      else { fila.style.display = "none"; }
+    }
+
+    input.addEventListener("input", function () {
+      const filtro = input.value.toLowerCase();
+      let visibles = 0;
+      for (let fila of filas) {
+        const texto = fila.textContent.toLowerCase();
+        if (texto.includes(filtro) && visibles < 10) {
+          fila.style.display = ""; visibles++;
+        } else {
+          fila.style.display = "none";
         }
-
-        input.addEventListener("input", function () {
-            const filtro = input.value.toLowerCase();
-            let visibles = 0;
-            for (let fila of filas) {
-                const texto = fila.textContent.toLowerCase();
-                if (texto.includes(filtro) && visibles < 10) {
-                    fila.style.display = "";
-                    visibles++;
-                } else {
-                    fila.style.display = "none";
-                }
-            }
-        });
+      }
     });
+  });
 </script>
-
 {% endblock %}

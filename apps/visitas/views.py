@@ -10,8 +10,10 @@ from apps.doctores.models import Doctor
 from django.utils.timezone import now
 from apps.rutas.utils import actualizar_estados_de_rutas
 from django.db.models import Count, Avg, DurationField, ExpressionWrapper, F
-from django.db.models.functions import TruncWeek
-from datetime import timedelta
+from django.core.paginator import Paginator
+from django.db.models.functions import ExtractIsoWeekDay, TruncWeek, Coalesce
+from django.db.models import Exists, OuterRef, Value, CharField, Case, When, IntegerField, BooleanField, Subquery, Count
+from datetime import date, datetime, timedelta
 import json
 
 @login_required
@@ -72,24 +74,92 @@ def iniciar_visita(request, ruta_id=None, doctor_id=None):
 
 @login_required
 def gestionar_visitas_medicas(request):
-    # Mantén tu actualización automática
+    # Mantén tu actualización automática de estados de rutas
     actualizar_estados_de_rutas()
 
     user = request.user
 
-    if user.is_superuser or user.rol == 'supervisor':
-        rutas = Ruta.objects.select_related('doctor', 'usuario').order_by('-fecha_visita')
-        doctores = Doctor.objects.all()              # Admin/supervisor ven todo
+    if user.is_superuser or getattr(user, 'rol', None) == 'supervisor':
+        rutas = (Ruta.objects
+                 .select_related('doctor', 'usuario')
+                 .order_by('-fecha_visita'))
+        doctores_base = Doctor.objects.all()
     else:
         rutas = (Ruta.objects
                  .filter(usuario=user)
                  .select_related('doctor')
                  .order_by('-fecha_visita'))
-        doctores = Doctor.objects.filter(visitador_id=user.id)  # ← Solo sus médicos
+        doctores_base = Doctor.objects.filter(visitador_id=user.id)
+
+    # ===== Periodo mensual (MES ACTUAL) =====
+    hoy = timezone.localdate()
+    month_start = hoy.replace(day=1)
+    if month_start.month == 12:
+        next_month_start = date(month_start.year + 1, 1, 1)
+    else:
+        next_month_start = date(month_start.year, month_start.month + 1, 1)
+
+    # ¿Visitado al menos una vez este mes por este usuario?
+    visitado_mes_qs = Visita.objects.filter(
+        usuario=user,
+        doctor_id=OuterRef('pk'),
+        fecha_inicio__date__gte=month_start,
+        fecha_inicio__date__lt=next_month_start,
+    )
+
+    # Conteo de visitas del mes por médico (para la columna "Visitas (mes)")
+    visitas_count_sq = (
+        Visita.objects
+        .filter(
+            usuario=user,
+            doctor_id=OuterRef('pk'),
+            fecha_inicio__date__gte=month_start,
+            fecha_inicio__date__lt=next_month_start,
+        )
+        .values('doctor_id')
+        .annotate(c=Count('id'))
+        .values('c')[:1]
+    )
+
+    # (Opcional) planificado en rutas futuras de este mes → amarillo
+    planificado_qs = Ruta.objects.filter(
+        usuario_id=user.id,
+        doctor_id=OuterRef('pk'),
+        fecha_visita__gte=hoy,
+        fecha_visita__lt=next_month_start,
+    )
+
+    doctores = (
+        doctores_base
+        .annotate(
+            visitas_mes=Coalesce(Subquery(visitas_count_sq, output_field=IntegerField()), Value(0)),
+            visitado_mes=Exists(visitado_mes_qs),
+            planificado=Exists(planificado_qs),
+            semaforo=Case(
+                When(visitado_mes=True, then=Value('verde')),
+                When(visitado_mes=False, planificado=True, then=Value('amarillo')),
+                default=Value('rojo'),
+                output_field=CharField(),
+            ),
+            estado_label=Case(
+                When(visitado_mes=True, then=Value('Cubierto')),
+                When(planificado=True, then=Value('Planificado')),
+                default=Value('Pendiente'),
+                output_field=CharField(),
+            ),
+            visitado_bool=Case(  # por si te sirve en la UI
+                When(visitas_mes__gt=0, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField(),
+            ),
+        )
+        .only('id', 'cmp', 'apellido', 'nombre', 'especialidad')
+    )
 
     return render(request, 'visitas/gestionar_visitas_medicas.html', {
         'rutas': rutas,
         'doctores': doctores,
+        # si luego quieres selector de mes, aquí pasaríamos month_value
     })
 
 @login_required
@@ -204,65 +274,204 @@ def actualizar_estados_de_rutas():
 
         ruta.save()
 
+def _aware(dt):
+    return dt if timezone.is_aware(dt) else timezone.make_aware(dt)
+
+def _week_bounds(year:int, week:int):
+    # Lunes de esa semana ISO y lunes siguiente
+    start_d = date.fromisocalendar(year, week, 1)
+    end_d   = start_d + timedelta(days=7)
+    return (
+        _aware(datetime.combine(start_d, datetime.min.time())),
+        _aware(datetime.combine(end_d,   datetime.min.time())),
+        start_d
+    )
+
+
 @login_required
 def ver_historial(request):
     usuario = request.user
 
-    # Query base (sin límites)
-    visitas_qs = Visita.objects.filter(usuario=usuario).order_by('-fecha_inicio')
-    detalles_qs = DetalleVisita.objects.filter(visita__in=visitas_qs)
-    presentados_qs = ProductoPresentado.objects.filter(visita__in=visitas_qs)
+    # =========================
+    # 1) HISTORIAL SEMANAL (tablas + barras)
+    # =========================
+    # Semana seleccionada (?semana=&año=) o actual
+    hoy = timezone.localdate()
+    y, w, _ = hoy.isocalendar()
+    semana = int(request.GET.get("semana", w))
+    año    = int(request.GET.get("año", y))
 
-    # KPIs
-    total_visitas_semana = visitas_qs.filter(
-        fecha_inicio__week=timezone.now().isocalendar()[1]
-    ).count()
-    tiempo_promedio = (visitas_qs
-        .exclude(fecha_final=None)
-        .annotate(duracion_min=ExpressionWrapper(F('fecha_final') - F('fecha_inicio'), output_field=DurationField()))
-        .aggregate(promedio=Avg('duracion_min'))
-        .get('promedio') or timedelta(minutes=0)
+    # Saltar con <input type="week" name="weekpick" value="YYYY-Www">
+    weekpick = request.GET.get("weekpick")
+    if weekpick:
+        try:
+            a, ws = weekpick.split("-W")
+            año = int(a); semana = int(ws)
+        except Exception:
+            pass  # si viene mal, se ignora
+
+    # Rango semanal por FECHA (lunes → lunes siguiente)
+    week_start_date = date.fromisocalendar(año, semana, 1)
+    week_end_date   = week_start_date + timedelta(days=7)
+
+    # Query base semanal (evita N+1)
+    visitas_qs = (
+        Visita.objects
+        .filter(
+            usuario=usuario,
+            fecha_inicio__date__gte=week_start_date,
+            fecha_inicio__date__lt=week_end_date,
+        )
+        .select_related('doctor')
+        .order_by('-fecha_inicio')
+    )
+    detalles_qs = (
+        DetalleVisita.objects
+        .filter(
+            visita__usuario=usuario,
+            visita__fecha_inicio__date__gte=week_start_date,
+            visita__fecha_inicio__date__lt=week_end_date,
+        )
+        .select_related('visita', 'visita__doctor', 'producto')
+        .order_by('-visita__fecha_inicio')
+    )
+    presentados_qs = (
+        ProductoPresentado.objects
+        .filter(
+            visita__usuario=usuario,
+            visita__fecha_inicio__date__gte=week_start_date,
+            visita__fecha_inicio__date__lt=week_end_date,
+        )
+        .select_related('visita', 'visita__doctor', 'producto')
+        .order_by('-visita__fecha_inicio')
+    )
+
+    # KPIs semanales (ligeros)
+    total_visitas_semana = visitas_qs.count()
+    tiempo_promedio = (
+        visitas_qs.exclude(fecha_final=None)
+        .annotate(
+            dur_delta=ExpressionWrapper(
+                F('fecha_final') - F('fecha_inicio'),
+                output_field=DurationField()
+            )
+        )
+        .aggregate(prom=Avg('dur_delta'))['prom'] or timedelta()
     )
     total_productos_presentados = presentados_qs.count()
     total_entregas = detalles_qs.count()
 
-    # Datos para gráficos
-    visitas_por_semana = (
-        visitas_qs.annotate(semana=TruncWeek('fecha_inicio'))
-        .values('semana').annotate(total=Count('id')).order_by('semana')
+    # Barras: visitas por día (Lun..Dom) — semanal
+    por_dia = (
+        visitas_qs
+        .annotate(dow=ExtractIsoWeekDay('fecha_inicio'))  # 1..7
+        .values('dow').annotate(total=Count('id')).order_by('dow')
     )
-    visitas_semana_labels = [v['semana'].strftime('%d/%m') for v in visitas_por_semana]
-    visitas_semana_data = [v['total'] for v in visitas_por_semana]
+    nombres_dias = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"]
+    mapa = {d['dow']: d['total'] for d in por_dia}
+    visitas_semana_labels = nombres_dias
+    visitas_semana_data   = [mapa.get(i, 0) for i in range(1, 8)]
 
-    productos_por_tipo = (
-        detalles_qs.values('producto__tipo_producto')
-        .annotate(total=Count('id')).order_by('-total')
+    # Top doctores (etiqueta: primer apellido + primer nombre) — semanal
+    def _first_token(s: str) -> str:
+        s = (s or "").strip()
+        return s.split()[0] if s else ""
+
+    top_raw = (
+        visitas_qs
+        .values('doctor__apellido', 'doctor__nombre')
+        .annotate(total=Count('id'))
+        .order_by('-total')[:5]
     )
-    productos_tipo_labels = [p['producto__tipo_producto'] for p in productos_por_tipo] or ["Sin datos"]
-    productos_tipo_data = [p['total'] for p in productos_por_tipo] or [1]
+    top_doctores_labels = [
+        (f"{_first_token(d['doctor__apellido'])} {_first_token(d['doctor__nombre'])}".strip() or "Sin nombre")
+        for d in top_raw
+    ]
+    top_doctores_data = [d['total'] for d in top_raw]
 
-    top_doctores = (visitas_qs.values('doctor__nombre')
-        .annotate(total=Count('id')).order_by('-total')[:5])
-    top_doctores_labels = [d['doctor__nombre'] for d in top_doctores]
-    top_doctores_data = [d['total'] for d in top_doctores]
+    # Navegación semanal y valor para <input type="week">
+    prev_monday = week_start_date - timedelta(days=7)
+    next_monday = week_start_date + timedelta(days=7)
+    prev_year, prev_week, _ = prev_monday.isocalendar()
+    next_year, next_week, _ = next_monday.isocalendar()
+    weekpick_value = f"{año}-W{semana:02d}"
 
+    # =========================
+    # 2) COBERTURA MENSUAL (KPI + donut)
+    # =========================
+    # Mes seleccionado (?month=YYYY-MM) o actual
+    month_param = request.GET.get("month")
+    if month_param:
+        try:
+            m_year, m_month = map(int, month_param.split("-"))
+            month_start_date = date(m_year, m_month, 1)
+        except Exception:
+            month_start_date = hoy.replace(day=1)
+    else:
+        month_start_date = hoy.replace(day=1)
+
+    # 1er día del mes siguiente
+    if month_start_date.month == 12:
+        next_month_start = date(month_start_date.year + 1, 1, 1)
+    else:
+        next_month_start = date(month_start_date.year, month_start_date.month + 1, 1)
+    month_end_date = next_month_start  # rango [inicio, fin)
+
+    # Asignados de la cartera del visitador (ajusta si usas M2M)
+    asignados_qs = Doctor.objects.filter(visitador=usuario).only('id')
+    asignados_total = asignados_qs.count()
+
+    # Visitados distintos en el MES y que además sean ASIGNADOS
+    visitas_mes_qs = Visita.objects.filter(
+        usuario=usuario,
+        fecha_inicio__date__gte=month_start_date,
+        fecha_inicio__date__lt=month_end_date,
+    ).values('doctor_id').distinct()
+    visitados_count = asignados_qs.filter(id__in=visitas_mes_qs).count()
+
+    pendientes = max(asignados_total - visitados_count, 0)
+    cobertura_pct = round(100 * visitados_count / asignados_total) if asignados_total else 0
+
+    # Para compatibilidad con tu pie actual (lo ajustaremos en template luego)
+    cobertura_labels = ["Visitados", "Pendientes"]
+    cobertura_data   = [visitados_count, pendientes]
+    month_value = f"{month_start_date:%Y-%m}"  # valor para <input type="month">
+
+    # =========================
+    # Render
+    # =========================
     return render(request, 'visitas/historial.html', {
-        # KPIs
+        # KPIs semanales (historial)
         'total_visitas_semana': total_visitas_semana,
         'total_productos_presentados': total_productos_presentados,
         'total_entregas': total_entregas,
-        'tiempo_promedio': round(tiempo_promedio.total_seconds() / 60) if tiempo_promedio else 0,
+        'tiempo_promedio': round(tiempo_promedio.total_seconds()/60),
 
-        # Gráficos (JSON)
+        # Gráfico barras semanal
         'visitas_semana_labels': json.dumps(visitas_semana_labels),
         'visitas_semana_data': json.dumps(visitas_semana_data),
-        'productos_tipo_labels': json.dumps(productos_tipo_labels),
-        'productos_tipo_data': json.dumps(productos_tipo_data),
+
+        # Top doctores semanal
         'top_doctores_labels': json.dumps(top_doctores_labels),
         'top_doctores_data': json.dumps(top_doctores_data),
 
-        # Tablas completas (sin límite)
+        # Tablas (de la semana)
         'visitas': visitas_qs,
         'detalles': detalles_qs,
         'presentados': presentados_qs,
+
+        # Navegación semanal
+        'semana_actual': semana, 'año_actual': año,
+        'semana_anterior': prev_week, 'año_anterior': prev_year,
+        'semana_siguiente': next_week, 'año_siguiente': next_year,
+        'weekpick_value': weekpick_value,
+
+        # Cobertura mensual (KPI + donut)
+        'cobertura_labels': json.dumps(cobertura_labels),
+        'cobertura_data': json.dumps(cobertura_data),
+        'cobertura_pct': cobertura_pct,
+        'visitados_count': visitados_count,
+        'asignados_total': asignados_total,
+        'month_value': month_value,
+        'pendientes': pendientes,
     })
