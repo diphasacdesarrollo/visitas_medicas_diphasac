@@ -1,14 +1,37 @@
-<!--templates/visitas/historial.html-->
+<!-- templates/visitas/historial.html -->
 {% extends 'base.html' %}
 {% load static %}
 
 {% block content %}
 <div class="container mt-4">
 
-  <h2 class="text-center mb-3">📊 Historial de Visitas de {{ request.user.get_full_name }}</h2>
+  <!-- Título: muestra el nombre del usuario objetivo -->
+  <h2 class="text-center mb-3">📊 Historial de Visitas de {{ titulo_nombre }}</h2>
+
+  {% if is_supervisor %}
+  <!-- Selector de visitador (solo supervisores) -->
+  <form method="get" class="row g-2 align-items-end mb-3">
+    <!-- Conserva semana/mes activos al cambiar visitador -->
+    <input type="hidden" name="semana" value="{{ semana_actual }}">
+    <input type="hidden" name="año" value="{{ año_actual }}">
+    <input type="hidden" name="month" value="{{ month_value }}">
+    <div class="col-auto">
+      <label class="form-label mb-0">Visitador</label>
+      <select name="rep_id" class="form-select" onchange="this.form.submit()">
+        <option value="">— Seleccione visitador —</option>
+        {% for u in visitadores %}
+          <option value="{{ u.id }}" {% if rep_id == u.id|stringformat:'s' %}selected{% endif %}>
+            {{ u.get_full_name|default:u.username }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+  {% endif %}
 
   <!-- Navegación por semanas -->
   <form method="get" class="row g-2 align-items-end mb-3">
+    {% if is_supervisor %}<input type="hidden" name="rep_id" value="{{ rep_id }}">{% endif %}
     <input type="hidden" name="month" value="{{ month_value }}">
     <div class="col-auto">
       <label class="form-label mb-0">Ir a semana</label>
@@ -21,14 +44,14 @@
     <div class="col-auto ms-auto">
       <div class="btn-group">
         <a class="btn btn-outline-primary"
-           href="?semana={{ semana_anterior }}&año={{ año_anterior }}&month={{ month_value }}">
+           href="?semana={{ semana_anterior }}&año={{ año_anterior }}&month={{ month_value }}{% if rep_id %}&rep_id={{ rep_id }}{% endif %}">
           ⬅ Semana anterior
         </a>
         <span class="btn btn-light disabled">
           Semana {{ semana_actual }} – {{ año_actual }}
         </span>
         <a class="btn btn-outline-primary"
-           href="?semana={{ semana_siguiente }}&año={{ año_siguiente }}&month={{ month_value }}">
+           href="?semana={{ semana_siguiente }}&año={{ año_siguiente }}&month={{ month_value }}{% if rep_id %}&rep_id={{ rep_id }}{% endif %}">
           Semana siguiente ➡
         </a>
       </div>
@@ -37,6 +60,7 @@
 
   <!-- Selector de mes (Cobertura) -->
   <form method="get" class="row g-2 align-items-end mb-4">
+    {% if is_supervisor %}<input type="hidden" name="rep_id" value="{{ rep_id }}">{% endif %}
     <input type="hidden" name="semana" value="{{ semana_actual }}">
     <input type="hidden" name="año" value="{{ año_actual }}">
     <div class="col-auto">
@@ -48,7 +72,7 @@
     </div>
   </form>
 
-  <!-- KPI Mensuales (Cobertura) -->
+  <!-- KPI Mensuales -->
   <div class="row mb-4 text-center">
     <div class="col-md-3">
       <div class="card bg-dark text-white p-3 shadow">
@@ -127,7 +151,6 @@
             <td>{{ v.doctor.apellido|default:'' }} - {{ v.doctor.nombre|default:'' }}</td>
             <td>{{ v.doctor.cmp|default:"-" }}</td>
             <td>
-              {# Si especialidad es FK, intenta .nombre; si es CharField, muestra directo #}
               {% if v.doctor.especialidad %}
                 {{ v.doctor.especialidad.nombre|default:v.doctor.especialidad }}
               {% else %}
@@ -192,7 +215,7 @@
   </div>
 </div>
 
-<!-- Datos como JSON -->
+<!-- Datos como JSON para Chart.js -->
 <script type="application/json" id="visitasLabels">{{ visitas_semana_labels|safe }}</script>
 <script type="application/json" id="visitasData">{{ visitas_semana_data|safe }}</script>
 <script type="application/json" id="coberturaLabels">{{ cobertura_labels|safe }}</script>
@@ -203,7 +226,6 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Leer datos desde el HTML
 const visitasLabels   = JSON.parse(document.getElementById('visitasLabels').textContent);
 const visitasData     = JSON.parse(document.getElementById('visitasData').textContent);
 const coberturaLabels = JSON.parse(document.getElementById('coberturaLabels').textContent);
@@ -211,43 +233,17 @@ const coberturaData   = JSON.parse(document.getElementById('coberturaData').text
 const doctoresLabels  = JSON.parse(document.getElementById('doctoresLabels').textContent);
 const doctoresData    = JSON.parse(document.getElementById('doctoresData').textContent);
 
-// Gráfico Visitas por semana (barras)
 new Chart(document.getElementById('visitasSemana'), {
   type: 'bar',
-  data: {
-    labels: visitasLabels,
-    datasets: [{
-      label: 'Visitas',
-      data: visitasData,
-      backgroundColor: 'rgba(54, 162, 235, 0.6)'
-    }]
-  }
+  data: { labels: visitasLabels, datasets: [{ label: 'Visitas', data: visitasData, backgroundColor: 'rgba(54, 162, 235, 0.6)' }] }
 });
-
-// Gráfico Cobertura mensual (donut)
 new Chart(document.getElementById('coberturaMes'), {
   type: 'doughnut',
-  data: {
-    labels: coberturaLabels,          // ["Visitados", "Pendientes"]
-    datasets: [{
-      label: 'Cobertura',
-      data: coberturaData,            // [visitados, pendientes]
-      backgroundColor: ['#36A2EB','#FF6384']
-    }]
-  }
+  data: { labels: coberturaLabels, datasets: [{ label: 'Cobertura', data: coberturaData, backgroundColor: ['#36A2EB','#FF6384'] }] }
 });
-
-// Gráfico Top doctores (barras)
 new Chart(document.getElementById('topDoctores'), {
   type: 'bar',
-  data: {
-    labels: doctoresLabels,
-    datasets: [{
-      label: 'Visitas',
-      data: doctoresData,
-      backgroundColor: 'rgba(153, 102, 255, 0.6)'
-    }]
-  }
+  data: { labels: doctoresLabels, datasets: [{ label: 'Visitas', data: doctoresData, backgroundColor: 'rgba(153, 102, 255, 0.6)' }] }
 });
 </script>
 {% endblock %}

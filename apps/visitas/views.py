@@ -14,6 +14,7 @@ from django.core.paginator import Paginator
 from django.db.models.functions import ExtractIsoWeekDay, TruncWeek, Coalesce
 from django.db.models import Exists, OuterRef, Value, CharField, Case, When, IntegerField, BooleanField, Subquery, Count
 from datetime import date, datetime, timedelta
+from django.contrib.auth import get_user_model
 import json
 
 @login_required
@@ -290,35 +291,46 @@ def _week_bounds(year:int, week:int):
 
 @login_required
 def ver_historial(request):
-    usuario = request.user
+    User = get_user_model()
+    user = request.user
+
+    # ====== quién es el "dueño" del historial que mostraremos ======
+    rep_id = request.GET.get("rep_id")
+    is_supervisor = user.is_superuser or getattr(user, "rol", "") == "supervisor"
+
+    usuario_target = user  # por defecto, uno mismo
+    visitadores_qs = User.objects.none()
+
+    if is_supervisor:
+        # lista de visitadores para el selector
+        visitadores_qs = User.objects.filter(rol="visitador").order_by("first_name", "last_name")
+
+        if rep_id:  # si el supervisor eligió a alguien
+            usuario_target = get_object_or_404(User, id=rep_id, rol="visitador")
 
     # =========================
-    # 1) HISTORIAL SEMANAL (tablas + barras)
+    # 1) HISTORIAL SEMANAL
     # =========================
-    # Semana seleccionada (?semana=&año=) o actual
     hoy = timezone.localdate()
     y, w, _ = hoy.isocalendar()
     semana = int(request.GET.get("semana", w))
     año    = int(request.GET.get("año", y))
 
-    # Saltar con <input type="week" name="weekpick" value="YYYY-Www">
     weekpick = request.GET.get("weekpick")
     if weekpick:
         try:
             a, ws = weekpick.split("-W")
             año = int(a); semana = int(ws)
         except Exception:
-            pass  # si viene mal, se ignora
+            pass
 
-    # Rango semanal por FECHA (lunes → lunes siguiente)
     week_start_date = date.fromisocalendar(año, semana, 1)
     week_end_date   = week_start_date + timedelta(days=7)
 
-    # Query base semanal (evita N+1)
     visitas_qs = (
         Visita.objects
         .filter(
-            usuario=usuario,
+            usuario=usuario_target,                                 # <<< clave
             fecha_inicio__date__gte=week_start_date,
             fecha_inicio__date__lt=week_end_date,
         )
@@ -328,7 +340,7 @@ def ver_historial(request):
     detalles_qs = (
         DetalleVisita.objects
         .filter(
-            visita__usuario=usuario,
+            visita__usuario=usuario_target,                         # <<< clave
             visita__fecha_inicio__date__gte=week_start_date,
             visita__fecha_inicio__date__lt=week_end_date,
         )
@@ -338,7 +350,7 @@ def ver_historial(request):
     presentados_qs = (
         ProductoPresentado.objects
         .filter(
-            visita__usuario=usuario,
+            visita__usuario=usuario_target,                         # <<< clave
             visita__fecha_inicio__date__gte=week_start_date,
             visita__fecha_inicio__date__lt=week_end_date,
         )
@@ -346,25 +358,18 @@ def ver_historial(request):
         .order_by('-visita__fecha_inicio')
     )
 
-    # KPIs semanales (ligeros)
     total_visitas_semana = visitas_qs.count()
     tiempo_promedio = (
         visitas_qs.exclude(fecha_final=None)
-        .annotate(
-            dur_delta=ExpressionWrapper(
-                F('fecha_final') - F('fecha_inicio'),
-                output_field=DurationField()
-            )
-        )
+        .annotate(dur_delta=ExpressionWrapper(F('fecha_final') - F('fecha_inicio'), output_field=DurationField()))
         .aggregate(prom=Avg('dur_delta'))['prom'] or timedelta()
     )
     total_productos_presentados = presentados_qs.count()
     total_entregas = detalles_qs.count()
 
-    # Barras: visitas por día (Lun..Dom) — semanal
     por_dia = (
         visitas_qs
-        .annotate(dow=ExtractIsoWeekDay('fecha_inicio'))  # 1..7
+        .annotate(dow=ExtractIsoWeekDay('fecha_inicio'))
         .values('dow').annotate(total=Count('id')).order_by('dow')
     )
     nombres_dias = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"]
@@ -372,7 +377,6 @@ def ver_historial(request):
     visitas_semana_labels = nombres_dias
     visitas_semana_data   = [mapa.get(i, 0) for i in range(1, 8)]
 
-    # Top doctores (etiqueta: primer apellido + primer nombre) — semanal
     def _first_token(s: str) -> str:
         s = (s or "").strip()
         return s.split()[0] if s else ""
@@ -389,7 +393,6 @@ def ver_historial(request):
     ]
     top_doctores_data = [d['total'] for d in top_raw]
 
-    # Navegación semanal y valor para <input type="week">
     prev_monday = week_start_date - timedelta(days=7)
     next_monday = week_start_date + timedelta(days=7)
     prev_year, prev_week, _ = prev_monday.isocalendar()
@@ -397,9 +400,8 @@ def ver_historial(request):
     weekpick_value = f"{año}-W{semana:02d}"
 
     # =========================
-    # 2) COBERTURA MENSUAL (KPI + donut)
+    # 2) COBERTURA MENSUAL
     # =========================
-    # Mes seleccionado (?month=YYYY-MM) o actual
     month_param = request.GET.get("month")
     if month_param:
         try:
@@ -410,63 +412,52 @@ def ver_historial(request):
     else:
         month_start_date = hoy.replace(day=1)
 
-    # 1er día del mes siguiente
     if month_start_date.month == 12:
         next_month_start = date(month_start_date.year + 1, 1, 1)
     else:
         next_month_start = date(month_start_date.year, month_start_date.month + 1, 1)
-    month_end_date = next_month_start  # rango [inicio, fin)
 
-    # Asignados de la cartera del visitador (ajusta si usas M2M)
-    asignados_qs = Doctor.objects.filter(visitador=usuario).only('id')
+    asignados_qs = Doctor.objects.filter(visitador=usuario_target).only('id')  # <<< clave
     asignados_total = asignados_qs.count()
 
-    # Visitados distintos en el MES y que además sean ASIGNADOS
-    visitas_mes_qs = Visita.objects.filter(
-        usuario=usuario,
-        fecha_inicio__date__gte=month_start_date,
-        fecha_inicio__date__lt=month_end_date,
-    ).values('doctor_id').distinct()
+    visitas_mes_qs = (
+        Visita.objects
+        .filter(
+            usuario=usuario_target,                                  # <<< clave
+            fecha_inicio__date__gte=month_start_date,
+            fecha_inicio__date__lt=next_month_start,
+        )
+        .values('doctor_id')
+        .distinct()
+    )
     visitados_count = asignados_qs.filter(id__in=visitas_mes_qs).count()
-
     pendientes = max(asignados_total - visitados_count, 0)
     cobertura_pct = round(100 * visitados_count / asignados_total) if asignados_total else 0
 
-    # Para compatibilidad con tu pie actual (lo ajustaremos en template luego)
     cobertura_labels = ["Visitados", "Pendientes"]
     cobertura_data   = [visitados_count, pendientes]
-    month_value = f"{month_start_date:%Y-%m}"  # valor para <input type="month">
+    month_value = f"{month_start_date:%Y-%m}"
 
-    # =========================
-    # Render
-    # =========================
+    # nombre que muestra el título
+    titulo_nombre = usuario_target.get_full_name() or usuario_target.username
+
     return render(request, 'visitas/historial.html', {
-        # KPIs semanales (historial)
+        # datos actuales...
         'total_visitas_semana': total_visitas_semana,
         'total_productos_presentados': total_productos_presentados,
         'total_entregas': total_entregas,
         'tiempo_promedio': round(tiempo_promedio.total_seconds()/60),
-
-        # Gráfico barras semanal
         'visitas_semana_labels': json.dumps(visitas_semana_labels),
         'visitas_semana_data': json.dumps(visitas_semana_data),
-
-        # Top doctores semanal
         'top_doctores_labels': json.dumps(top_doctores_labels),
         'top_doctores_data': json.dumps(top_doctores_data),
-
-        # Tablas (de la semana)
         'visitas': visitas_qs,
         'detalles': detalles_qs,
         'presentados': presentados_qs,
-
-        # Navegación semanal
         'semana_actual': semana, 'año_actual': año,
         'semana_anterior': prev_week, 'año_anterior': prev_year,
         'semana_siguiente': next_week, 'año_siguiente': next_year,
         'weekpick_value': weekpick_value,
-
-        # Cobertura mensual (KPI + donut)
         'cobertura_labels': json.dumps(cobertura_labels),
         'cobertura_data': json.dumps(cobertura_data),
         'cobertura_pct': cobertura_pct,
@@ -474,4 +465,10 @@ def ver_historial(request):
         'asignados_total': asignados_total,
         'month_value': month_value,
         'pendientes': pendientes,
+
+        # <<< para el selector de supervisor
+        'is_supervisor': is_supervisor,
+        'visitadores': visitadores_qs,
+        'rep_id': str(rep_id or ""),
+        'titulo_nombre': titulo_nombre,
     })

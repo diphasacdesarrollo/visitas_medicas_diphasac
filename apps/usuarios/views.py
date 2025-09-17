@@ -1,8 +1,9 @@
-#apps/usuarios/views.py
+# apps/usuarios/views.py
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from .forms import CustomPasswordChangeForm
+
 
 @login_required
 def cambiar_password(request):
@@ -22,6 +23,18 @@ def cambiar_password(request):
 
     return render(request, 'usuarios/cambiar_password.html', {'form': form})
 
+
 @login_required
 def inicio(request):
     return render(request, 'inicio.html')
+
+
+# === Vista de fallo CSRF ===
+def csrf_failure(request, reason=""):
+    """
+    Vista amigable cuando falla la verificación CSRF.
+    Se configura en settings.py con:
+    CSRF_FAILURE_VIEW = 'apps.usuarios.views.csrf_failure'
+    """
+    context = {"reason": reason}
+    return render(request, "csrf_failure.html", context, status=403)
