@@ -75,7 +75,6 @@ def iniciar_visita(request, ruta_id=None, doctor_id=None):
 
 @login_required
 def gestionar_visitas_medicas(request):
-    # Mantén tu actualización automática de estados de rutas
     actualizar_estados_de_rutas()
 
     user = request.user
@@ -108,7 +107,7 @@ def gestionar_visitas_medicas(request):
         fecha_inicio__date__lt=next_month_start,
     )
 
-    # Conteo de visitas del mes por médico (para la columna "Visitas (mes)")
+    # Visitas del mes (contador)
     visitas_count_sq = (
         Visita.objects
         .filter(
@@ -120,6 +119,17 @@ def gestionar_visitas_medicas(request):
         .values('doctor_id')
         .annotate(c=Count('id'))
         .values('c')[:1]
+    )
+
+    # 🔹 NUEVO: última visita (para el usuario actual), toma la fecha más reciente
+    ultima_visita_sq = (
+        Visita.objects
+        .filter(
+            usuario=user,                # última visita realizada por este usuario
+            doctor_id=OuterRef('pk'),
+        )
+        .order_by('-fecha_inicio')
+        .values('fecha_inicio')[:1]
     )
 
     # (Opcional) planificado en rutas futuras de este mes → amarillo
@@ -136,6 +146,10 @@ def gestionar_visitas_medicas(request):
             visitas_mes=Coalesce(Subquery(visitas_count_sq, output_field=IntegerField()), Value(0)),
             visitado_mes=Exists(visitado_mes_qs),
             planificado=Exists(planificado_qs),
+
+            # 🔹 NUEVO: campo que usas en el template
+            ultima_visita=Subquery(ultima_visita_sq),
+
             semaforo=Case(
                 When(visitado_mes=True, then=Value('verde')),
                 When(visitado_mes=False, planificado=True, then=Value('amarillo')),
@@ -148,7 +162,7 @@ def gestionar_visitas_medicas(request):
                 default=Value('Pendiente'),
                 output_field=CharField(),
             ),
-            visitado_bool=Case(  # por si te sirve en la UI
+            visitado_bool=Case(
                 When(visitas_mes__gt=0, then=Value(True)),
                 default=Value(False),
                 output_field=BooleanField(),
@@ -160,7 +174,6 @@ def gestionar_visitas_medicas(request):
     return render(request, 'visitas/gestionar_visitas_medicas.html', {
         'rutas': rutas,
         'doctores': doctores,
-        # si luego quieres selector de mes, aquí pasaríamos month_value
     })
 
 @login_required

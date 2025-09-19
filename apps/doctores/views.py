@@ -1,9 +1,10 @@
 # apps/doctores/views.py
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .models import Doctor, Prescripcion
 from apps.ubicaciones.models import Departamento, Provincia, Distrito
+from django.db.models import Max, Subquery, OuterRef, DateField
 
 @login_required
 def crear_doctor(request):
@@ -58,10 +59,16 @@ def gestionar_medicos(request):
 
 @login_required
 def ver_prescripciones_doctor(request, doctor_id):
-    doctor = Doctor.objects.get(id=doctor_id)
-    prescripciones = Prescripcion.objects.filter(doctor_id=doctor.id).select_related('producto').order_by('-fecha_registro')
+    doctor = get_object_or_404(Doctor, id=doctor_id)
+    prescripciones = (
+        Prescripcion.objects
+        .filter(doctor_id=doctor.id)
+        .select_related('producto')
+        .order_by('-fecha_registro')
+    )
 
-    return render(request, 'doctores/ver_prescripciones.html', {
+    # 🔹 Devuelve SOLO la tabla (fragmento) para usar en un modal
+    return render(request, 'doctores/_prescripciones_table.html', {
         'doctor': doctor,
         'prescripciones': prescripciones
     })
