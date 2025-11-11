@@ -33,8 +33,13 @@
         <h2>Iniciar sesión</h2>
 
         {% if form.errors %}
-            <div class="alert alert-danger">
+            <div class="alert alert-danger mb-3">
                 Usuario o contraseña incorrectos.
+                {% if form.non_field_errors %}
+                    <div class="small mt-2">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
             </div>
         {% endif %}
 
@@ -42,15 +47,32 @@
             {% csrf_token %}
             {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
-            <div class="mb-3">
-                <label for="id_username" class="form-label">Correo electrónico</label>
-                <input type="text" name="username" autofocus required id="id_username" class="form-control" autocomplete="username">
-            </div>
+<div class="mb-3">
+  <label for="id_username" class="form-label">Correo electrónico</label>
+  <input
+    type="text"
+    name="username"
+    autofocus
+    required
+    id="id_username"
+    class="form-control"
+    autocomplete="username"
+    value="{{ form.username.value|default_if_none:'' }}"
+  >
+</div>
 
             <div class="mb-3">
                 <label for="id_password" class="form-label">Contraseña</label>
                 <div class="input-group">
-                    <input type="password" name="password" required id="id_password" class="form-control" autocomplete="current-password">
+                    <input
+                        type="password"
+                        name="password"
+                        required
+                        id="id_password"
+                        class="form-control"
+                        autocomplete="current-password"
+                        value="" 
+                    >
                     <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-label="Mostrar u ocultar contraseña">
                         <i class="bi bi-eye" id="toggleIcon"></i>
                     </button>

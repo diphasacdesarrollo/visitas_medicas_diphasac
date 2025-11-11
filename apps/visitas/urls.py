@@ -10,4 +10,6 @@ urlpatterns = [
     path('agregar-productos/', views.agregar_productos, name='agregar_productos'),
     path('gestionar-visitas/', views.gestionar_visitas_medicas, name='gestionar_visitas_medicas'),
     path('historial/', views.ver_historial, name='ver_historial'),
+    path('finalizar-visita/', views.finalizar_visita, name='finalizar_visita'),
+    path('cancelar-visita/', views.cancelar_visita, name='cancelar_visita'),
 ]
