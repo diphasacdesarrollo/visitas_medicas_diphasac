@@ -34,7 +34,7 @@
 </div>
 
 <div class="container text-center mt-4">
-    <div class="d-flex justify-content-center gap-3">
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
         <a href="{% url 'registrar_asistencia' %}" class="btn btn-primary btn-lg">
             Registrar Asistencia
         </a>
@@ -45,8 +45,49 @@
             Gestionar Visitas Médicas
         </a>
         <a href="{% url 'visitas:ver_historial' %}" class="btn btn-primary btn-lg">
-    Historial de Visitas
-    </a>
+            Historial de Visitas
+        </a>
+    </div>
+</div>
+
+<!-- NUEVO BLOQUE CON 3 IMÁGENES DE CLOUDINARY -->
+<div class="container mt-5">
+    <h4 class="text-center mb-4">flyer - NOVIEMBRE</h4>
+    <div class="row text-center">
+
+        <!-- BLOQUE 1 -->
+        <div class="col-md-4 mb-3">
+            <a href="{% url 'registrar_asistencia' %}" class="text-decoration-none">
+                <div class="card shadow-sm border-0">
+                    <img src="https://res.cloudinary.com/diugppuuf/image/upload/1_dpkxkt.jpg"
+                         class="img-fluid rounded"
+                         alt="Registrar asistencia">
+                </div>
+            </a>
+        </div>
+
+        <!-- BLOQUE 2 -->
+        <div class="col-md-4 mb-3">
+            <a href="{% url 'visitas:gestionar_visitas_medicas' %}" class="text-decoration-none">
+                <div class="card shadow-sm border-0">
+                    <img src="https://res.cloudinary.com/diugppuuf/image/upload/2_bsbtqz.jpg"
+                         class="img-fluid rounded"
+                         alt="Gestionar visitas médicas">
+                </div>
+            </a>
+        </div>
+
+        <!-- BLOQUE 3 -->
+        <div class="col-md-4 mb-3">
+            <a href="{% url 'visitas:ver_historial' %}" class="text-decoration-none">
+                <div class="card shadow-sm border-0">
+                    <img src="https://res.cloudinary.com/diugppuuf/image/upload/3_ibiubq.jpg"
+                         class="img-fluid rounded"
+                         alt="Historial de visitas">
+                </div>
+            </a>
+        </div>
+
     </div>
 </div>
 
