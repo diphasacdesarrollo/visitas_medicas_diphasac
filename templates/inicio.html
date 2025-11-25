@@ -52,43 +52,103 @@
 
 <!-- NUEVO BLOQUE CON 3 IMÁGENES DE CLOUDINARY -->
 <div class="container mt-5">
-    <h4 class="text-center mb-4">flyer - NOVIEMBRE</h4>
+    <h4 class="text-center mb-4">Flyer - NOVIEMBRE</h4>
     <div class="row text-center">
 
         <!-- BLOQUE 1 -->
         <div class="col-md-4 mb-3">
-            <a href="{% url 'registrar_asistencia' %}" class="text-decoration-none">
+            <button type="button"
+                    class="btn p-0 border-0 bg-transparent w-100"
+                    data-bs-toggle="modal"
+                    data-bs-target="#flyer1Modal">
                 <div class="card shadow-sm border-0">
                     <img src="https://res.cloudinary.com/diugppuuf/image/upload/1_dpkxkt.jpg"
                          class="img-fluid rounded"
                          alt="Registrar asistencia">
                 </div>
-            </a>
+            </button>
         </div>
 
         <!-- BLOQUE 2 -->
         <div class="col-md-4 mb-3">
-            <a href="{% url 'visitas:gestionar_visitas_medicas' %}" class="text-decoration-none">
+            <button type="button"
+                    class="btn p-0 border-0 bg-transparent w-100"
+                    data-bs-toggle="modal"
+                    data-bs-target="#flyer2Modal">
                 <div class="card shadow-sm border-0">
                     <img src="https://res.cloudinary.com/diugppuuf/image/upload/2_bsbtqz.jpg"
                          class="img-fluid rounded"
                          alt="Gestionar visitas médicas">
                 </div>
-            </a>
+            </button>
         </div>
 
         <!-- BLOQUE 3 -->
         <div class="col-md-4 mb-3">
-            <a href="{% url 'visitas:ver_historial' %}" class="text-decoration-none">
+            <button type="button"
+                    class="btn p-0 border-0 bg-transparent w-100"
+                    data-bs-toggle="modal"
+                    data-bs-target="#flyer3Modal">
                 <div class="card shadow-sm border-0">
                     <img src="https://res.cloudinary.com/diugppuuf/image/upload/3_ibiubq.jpg"
                          class="img-fluid rounded"
                          alt="Historial de visitas">
                 </div>
-            </a>
+            </button>
         </div>
 
     </div>
+</div>
+
+<!-- MODAL FLYER 1 -->
+<div class="modal fade" id="flyer1Modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Familia Dapha</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img src="https://res.cloudinary.com/diugppuuf/image/upload/1_dpkxkt.jpg"
+             class="img-fluid"
+             alt="Registrar asistencia">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FLYER 2 -->
+<div class="modal fade" id="flyer2Modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Dapa10</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img src="https://res.cloudinary.com/diugppuuf/image/upload/2_bsbtqz.jpg"
+             class="img-fluid"
+             alt="Gestionar visitas médicas">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FLYER 3 -->
+<div class="modal fade" id="flyer3Modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Familia DUO-DAPHA</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img src="https://res.cloudinary.com/diugppuuf/image/upload/3_ibiubq.jpg"
+             class="img-fluid"
+             alt="Historial de visitas">
+      </div>
+    </div>
+  </div>
 </div>
 
 {% endblock %}
