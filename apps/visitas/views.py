@@ -175,25 +175,27 @@ def gestionar_visitas_medicas(request):
     doctores_base = Doctor.objects.filter(visitador_id=user.id)
 
     # 🔍 Filtro de búsqueda
-    if busqueda:
-        doctores_base = doctores_base.extra(
-            where=[
-                """
-                LTRIM(cmp, '0') = %s
-                OR nombre ILIKE %s
-                OR apellido ILIKE %s
-                OR especialidad ILIKE %s
-                OR direccion ILIKE %s
-                """
-            ],
-            params=[
-                busqueda_cmp,
-                f"%{busqueda}%",
-                f"%{busqueda}%",
-                f"%{busqueda}%",
-                f"%{busqueda}%"
-            ]
+   # 2) Doctores asignados al visitador
+doctores_base = Doctor.objects.filter(visitador_id=user.id)
+
+# 🔍 Filtro de búsqueda
+if busqueda:
+    filtros_texto = (
+        Q(nombre__icontains=busqueda) |
+        Q(apellido__icontains=busqueda) |
+        Q(especialidad__icontains=busqueda) |
+        Q(direccion__icontains=busqueda)
+    )
+
+    if busqueda.isdigit():
+        busqueda_cmp_int = int(busqueda)
+        doctores_base = doctores_base.annotate(
+            cmp_num=Cast('cmp', IntegerField())
+        ).filter(
+            Q(cmp_num=busqueda_cmp_int) | filtros_texto
         )
+    else:
+        doctores_base = doctores_base.filter(filtros_texto)
 
     # Límites del mes actual
     first_month_day = hoy.replace(day=1)
