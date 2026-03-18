@@ -47,6 +47,7 @@ def crear_ruta(request):
         visitador_objetivo = int(request.user.id)
 
     # ---------------------- FILTROS GEOGRÁFICOS -----------------
+        # ---------------------- FILTROS GEOGRÁFICOS -----------------
     if distrito_id:
         doctores_qs = doctores_qs.filter(ubigeo_id=distrito_id)
     elif provincia_id:
@@ -58,26 +59,24 @@ def crear_ruta(request):
         doctores_qs = doctores_qs.filter(ubigeo__in=distritos)
 
     # ---------------------- BÚSQUEDA ----------------------------
-    # ---------------------- BÚSQUEDA ----------------------------
-    # ---------------------- BÚSQUEDA ----------------------------
-        if busqueda:
-            filtros_texto = (
-                Q(nombre__icontains=busqueda) |
-                Q(apellido__icontains=busqueda) |
-                Q(cmp__icontains=busqueda)
+    if busqueda:
+        filtros_texto = (
+            Q(nombre__icontains=busqueda) |
+            Q(apellido__icontains=busqueda) |
+            Q(cmp__icontains=busqueda)
+        )
+
+        doctores_texto = doctores_qs.filter(filtros_texto)
+
+        busqueda_cmp = busqueda.lstrip("0")
+        if busqueda_cmp.isdigit():
+            doctores_cmp = doctores_qs.extra(
+                where=["LTRIM(cmp, '0') = %s"],
+                params=[busqueda_cmp]
             )
-        
-            doctores_texto = doctores_qs.filter(filtros_texto)
-        
-            busqueda_cmp = busqueda.lstrip("0")
-            if busqueda_cmp.isdigit():
-                doctores_cmp = doctores_qs.extra(
-                    where=["LTRIM(cmp, '0') = %s"],
-                    params=[busqueda_cmp]
-                )
-                doctores_qs = (doctores_texto | doctores_cmp).distinct()
-            else:
-                doctores_qs = doctores_texto
+            doctores_qs = (doctores_texto | doctores_cmp).distinct()
+        else:
+            doctores_qs = doctores_texto
     # ---------------------- OPTIMIZACIÓN ------------------------
     doctores_qs = (
         doctores_qs
