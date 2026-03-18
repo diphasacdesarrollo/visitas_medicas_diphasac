@@ -59,23 +59,25 @@ def crear_ruta(request):
 
     # ---------------------- BÚSQUEDA ----------------------------
     # ---------------------- BÚSQUEDA ----------------------------
-    if busqueda:
-        busqueda_cmp = busqueda.lstrip("0")
-    
-        doctores_qs = doctores_qs.extra(
-            where=[
-                """
-                nombre ILIKE %s
-                OR apellido ILIKE %s
-                OR LTRIM(cmp, '0') = %s
-                """
-            ],
-            params=[
-                f"%{busqueda}%",
-                f"%{busqueda}%",
-                busqueda_cmp,
-            ]
-        )
+    # ---------------------- BÚSQUEDA ----------------------------
+        if busqueda:
+            filtros_texto = (
+                Q(nombre__icontains=busqueda) |
+                Q(apellido__icontains=busqueda) |
+                Q(cmp__icontains=busqueda)
+            )
+        
+            doctores_texto = doctores_qs.filter(filtros_texto)
+        
+            busqueda_cmp = busqueda.lstrip("0")
+            if busqueda_cmp.isdigit():
+                doctores_cmp = doctores_qs.extra(
+                    where=["LTRIM(cmp, '0') = %s"],
+                    params=[busqueda_cmp]
+                )
+                doctores_qs = (doctores_texto | doctores_cmp).distinct()
+            else:
+                doctores_qs = doctores_texto
     # ---------------------- OPTIMIZACIÓN ------------------------
     doctores_qs = (
         doctores_qs
