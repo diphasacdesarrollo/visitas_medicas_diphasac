@@ -175,10 +175,6 @@ def gestionar_visitas_medicas(request):
     doctores_base = Doctor.objects.filter(visitador_id=user.id)
 
     # 🔍 Filtro de búsqueda
-   # 2) Doctores asignados al visitador
-doctores_base = Doctor.objects.filter(visitador_id=user.id)
-
-# 🔍 Filtro de búsqueda
 if busqueda:
     filtros_texto = (
         Q(nombre__icontains=busqueda) |
