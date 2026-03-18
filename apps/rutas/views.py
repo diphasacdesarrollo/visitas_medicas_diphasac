@@ -58,13 +58,24 @@ def crear_ruta(request):
         doctores_qs = doctores_qs.filter(ubigeo__in=distritos)
 
     # ---------------------- BÚSQUEDA ----------------------------
+    # ---------------------- BÚSQUEDA ----------------------------
     if busqueda:
-        doctores_qs = doctores_qs.filter(
-            Q(nombre__icontains=busqueda) |
-            Q(apellido__icontains=busqueda) |
-            Q(cmp__icontains=busqueda)
+        busqueda_cmp = busqueda.lstrip("0")
+    
+        doctores_qs = doctores_qs.extra(
+            where=[
+                """
+                nombre ILIKE %s
+                OR apellido ILIKE %s
+                OR LTRIM(cmp, '0') = %s
+                """
+            ],
+            params=[
+                f"%{busqueda}%",
+                f"%{busqueda}%",
+                busqueda_cmp,
+            ]
         )
-
     # ---------------------- OPTIMIZACIÓN ------------------------
     doctores_qs = (
         doctores_qs
