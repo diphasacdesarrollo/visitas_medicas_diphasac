@@ -155,6 +155,8 @@ def agregar_productos(request):
 def gestionar_visitas_medicas(request):
     user = request.user
     hoy = timezone.localdate()
+    busqueda = request.GET.get('q', '').strip()
+    busqueda_cmp = busqueda.lstrip('0')
 
     # 1) Rutas del visitador (mostrar todas desde hace unos días)
     rutas = (
@@ -162,7 +164,6 @@ def gestionar_visitas_medicas(request):
         .filter(usuario=user)
         .select_related('doctor')
         .annotate(
-            # 🟢 Ruta cubierta = existe visita asociada (finalizada)
             cubierta=Exists(
                 Visita.objects.filter(ruta_id=OuterRef("pk"), fecha_final__isnull=False)
             )
@@ -172,6 +173,27 @@ def gestionar_visitas_medicas(request):
 
     # 2) Doctores asignados al visitador
     doctores_base = Doctor.objects.filter(visitador_id=user.id)
+
+    # 🔍 Filtro de búsqueda
+    if busqueda:
+        doctores_base = doctores_base.extra(
+            where=[
+                """
+                LTRIM(cmp, '0') = %s
+                OR nombre ILIKE %s
+                OR apellido ILIKE %s
+                OR especialidad ILIKE %s
+                OR direccion ILIKE %s
+                """
+            ],
+            params=[
+                busqueda_cmp,
+                f"%{busqueda}%",
+                f"%{busqueda}%",
+                f"%{busqueda}%",
+                f"%{busqueda}%"
+            ]
+        )
 
     # Límites del mes actual
     first_month_day = hoy.replace(day=1)
@@ -205,7 +227,7 @@ def gestionar_visitas_medicas(request):
         Ruta.objects.filter(usuario=user, doctor_id=OuterRef('pk'), fecha_visita__gte=hoy)
     )
 
-    # Id de próxima ruta (para el botón "Iniciar")
+    # Id de próxima ruta
     ruta_proxima_id_sq = (
         Ruta.objects
         .filter(usuario=user, doctor_id=OuterRef('pk'), fecha_visita__gte=hoy)
@@ -222,7 +244,6 @@ def gestionar_visitas_medicas(request):
             ruta_proxima_id=Subquery(ruta_proxima_id_sq, output_field=IntegerField()),
         )
         .annotate(
-            # Semáforo & label del estado
             semaforo=Case(
                 When(visitas_mes__gt=0, then=Value('verde')),
                 When(tiene_ruta=True, then=Value('amarillo')),
@@ -239,7 +260,6 @@ def gestionar_visitas_medicas(request):
         .order_by('apellido', 'nombre')
     )
 
-    # Añade atributo .ruta_disponible con .id si existe
     doctores = []
     for d in doctores_qs:
         setattr(d, 'ruta_disponible', SimpleNamespace(id=d.ruta_proxima_id) if d.ruta_proxima_id else None)
@@ -248,8 +268,8 @@ def gestionar_visitas_medicas(request):
     return render(request, 'visitas/gestionar_visitas_medicas.html', {
         'rutas': rutas,
         'doctores': doctores,
+        'q': busqueda,
     })
-
 
 @login_required
 def finalizar_visita(request):
